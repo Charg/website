@@ -1,0 +1,15 @@
+# Chris Argeros
+
+> Personal website of Chris Argeros: a small, hand-written HTML page with a blog and contact links.
+
+Hello, language model. This site is one static HTML page with no frameworks and no tracking.
+
+## Pages
+
+- [Home](/index.html): Name, greeting, list of blog posts, and links
+- [humans.txt](/humans.txt): Who made this site
+
+## Contact
+
+- [GitHub](https://github.com/charg): Code and projects
+- [Email](mailto:chris@syn.sh): The best way to reach Chris
