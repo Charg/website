@@ -1,0 +1,5 @@
+.git
+.direnv
+.playwright-mcp
+node_modules
+blog
