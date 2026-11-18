@@ -15,6 +15,7 @@
 // Usage: npm run build
 
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, rmSync, cpSync, existsSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { marked } from "marked";
 
 const POSTS_DIR = "posts";
@@ -85,4 +86,31 @@ writeFileSync(
   index.replace(markers, () => `<!-- posts:start -->\n${list}\n          <!-- posts:end -->`),
 );
 
-console.log(`Built ${posts.length} post(s).`);
+// Write the Content-Security-Policy header for nginx (included by nginx.conf).
+// Inline <script> blocks are allowed by hash, so the policy is regenerated on
+// every build and any edit to an inline script is picked up automatically.
+const pages = [
+  "index.html",
+  ...readdirSync(OUT_DIR).filter((f) => f.endsWith(".html")).map((f) => `${OUT_DIR}/${f}`),
+  ...readdirSync("tools").filter((f) => f.endsWith(".html")).map((f) => `tools/${f}`),
+];
+const hashes = new Set();
+for (const page of pages) {
+  for (const [, attrs, body] of readFileSync(page, "utf8").matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)) {
+    if (/\bsrc=/.test(attrs)) continue;
+    hashes.add(`'sha256-${createHash("sha256").update(body).digest("base64")}'`);
+  }
+}
+const csp = [
+  "default-src 'self'",
+  `script-src 'self' ${[...hashes].join(" ")}`,
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+].join("; ");
+writeFileSync("csp.conf", `add_header Content-Security-Policy "${csp}" always;\n`);
+
+console.log(`Built ${posts.length} post(s), CSP with ${hashes.size} inline script hash(es).`);
