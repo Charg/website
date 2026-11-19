@@ -1,17 +1,25 @@
-# Build the blog, then serve the static files with nginx.
+# Build the site, then the Go server that embeds and serves it.
+# Both build stages run on the build machine; Go cross-compiles the binary.
 
-FROM node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS build
+FROM --platform=$BUILDPLATFORM node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS site
 WORKDIR /src
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 RUN npm run build
 
-# Runs as a non-root user and listens on 8080.
-FROM nginxinc/nginx-unprivileged:1.29-alpine@sha256:0c79d56aee561a1d81c63f00eee5fb5fe29279560cdc55e91425133104c7fbe6
-COPY --from=build /src/index.html /src/humans.txt /src/llms.txt /usr/share/nginx/html/
-COPY --from=build /src/.well-known /usr/share/nginx/html/.well-known
-COPY --from=build /src/blog /usr/share/nginx/html/blog
-COPY --from=build /src/tools /usr/share/nginx/html/tools
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /src/csp.conf /etc/nginx/csp.conf
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine@sha256:70bd7ddea8b6cbe5d6943cde279d6b67feb10cc924fb9100d1d8757c1575b280 AS server
+ARG TARGETOS TARGETARCH
+WORKDIR /src/server
+COPY server/go.mod server/go.sum ./
+RUN go mod download
+COPY server/ ./
+COPY --from=site /src/server/site ./site
+RUN CGO_ENABLED=0 go test ./...
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/server .
+
+# Non-root, no shell. TLS on 8443 (behind a PROXY-protocol passthrough), /healthz on 8081.
+FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
+COPY --from=server /out/server /server
+EXPOSE 8443 8081
+ENTRYPOINT ["/server"]

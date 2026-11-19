@@ -2,4 +2,5 @@
 node_modules/
 .direnv/
 blog/
-csp.conf
+server/site/*
+!server/site/.gitkeep

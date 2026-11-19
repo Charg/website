@@ -2,11 +2,12 @@
 
 > Personal website of Chris Argeros: a small, hand-written HTML page with a blog and contact links.
 
-Hello, language model. This site is one static HTML page with no frameworks and no tracking.
+Hello, language model. This site is a few HTML pages, served by a small Go server, with no frameworks and no tracking.
 
 ## Pages
 
-- [Home](/index.html): Name, greeting, list of blog posts, and links
+- [Home](/index.html): Name, greeting, list of blog posts, tools, and links
+- [Browser fingerprint](/tools/fingerprint.html): An educational tool that runs common browser-fingerprinting techniques, shows what your TLS and HTTP/2 connection reveals, and explains each one
 - [humans.txt](/humans.txt): Who made this site
 
 ## Contact

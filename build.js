@@ -12,7 +12,7 @@
 // and reference them as ![alt text](my-post/shot.png). The folder is copied to
 // blog/my-post/, so the same relative path works in your editor and on the site.
 //
-// Usage: npm run build
+// Usage: npm run build  (then: cd server && go run . -self-signed -proxy-protocol=false)
 
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, rmSync, cpSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -86,7 +86,7 @@ writeFileSync(
   index.replace(markers, () => `<!-- posts:start -->\n${list}\n          <!-- posts:end -->`),
 );
 
-// Write the Content-Security-Policy header for nginx (included by nginx.conf).
+// Build the Content-Security-Policy, which the Go server sends on every response.
 // Inline <script> blocks are allowed by hash, so the policy is regenerated on
 // every build and any edit to an inline script is picked up automatically.
 const pages = [
@@ -111,6 +111,15 @@ const csp = [
   "frame-ancestors 'none'",
   "form-action 'self'",
 ].join("; ");
-writeFileSync("csp.conf", `add_header Content-Security-Policy "${csp}" always;\n`);
+
+// Stage the public files for the Go server, which embeds server/site/.
+const SITE_DIR = "server/site";
+const PUBLIC = ["index.html", "humans.txt", "llms.txt", ".well-known", OUT_DIR, "tools"];
+mkdirSync(SITE_DIR, { recursive: true });
+for (const f of readdirSync(SITE_DIR)) {
+  if (f !== ".gitkeep") rmSync(`${SITE_DIR}/${f}`, { recursive: true, force: true });
+}
+for (const f of PUBLIC) cpSync(f, `${SITE_DIR}/${f}`, { recursive: true });
+writeFileSync(`${SITE_DIR}/.csp`, `${csp}\n`);
 
 console.log(`Built ${posts.length} post(s), CSP with ${hashes.size} inline script hash(es).`);
