@@ -5,6 +5,7 @@ go 1.27.4
 require (
 	github.com/pires/go-proxyproto v0.16.0
 	github.com/yuin/goldmark v1.8.7
+	github.com/yuin/goldmark/v2 v2.1.16
 	golang.org/x/crypto v0.59.0
 	golang.org/x/net v0.63.0
 )
