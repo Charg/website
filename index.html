@@ -7,6 +7,7 @@
   <link rel="author" href="/humans.txt">
   <link rel="stylesheet" href="/assets/site.css">
   <script src="/assets/theme.js"></script>
+  <script src="/assets/myspace.js" defer></script>
   <style>
     /* The header bar already shows the name, so the heading is for screen
        readers only, until the easter egg brings it back. */
@@ -37,62 +38,7 @@
 
     h2::before { content: "## "; color: var(--muted); }
 
-    /* ~*~ Easter egg: double-click the footer stars for a 2006 profile page ~*~ */
-    .ms { display: none; }
-
-    :root.myspace {
-      color-scheme: light;
-      --bg: #ffffff;
-      --text: #000000;
-      --muted: #ff3399;
-      --link: #0033cc;
-      --visited: #6600cc;
-    }
-
-    :root.myspace body {
-      background-color: #000;
-      background-image:
-        radial-gradient(#ff66cc 1.5px, transparent 2px),
-        radial-gradient(#33ccff 1.5px, transparent 2px),
-        radial-gradient(#ffff66 1px, transparent 1.5px);
-      background-size: 60px 60px, 90px 90px, 40px 40px;
-      background-position: 0 0, 30px 45px, 15px 20px;
-      font-family: "Comic Sans MS", "Comic Sans", "Chalkboard SE", cursive;
-    }
-
-    /* A few scattered stars that each twinkle on their own, slow schedule. */
-    .twinkles { display: none; }
-
-    :root.myspace .twinkles {
-      display: block;
-      position: fixed;
-      inset: 0;
-      z-index: -1;
-      overflow: hidden;
-      pointer-events: none;
-    }
-
-    .twinkles span {
-      position: absolute;
-      opacity: 0;
-      line-height: 1;
-      text-shadow: 0 0 6px currentColor;
-      animation: twinkle-star ease-in-out infinite;
-    }
-
-    @keyframes twinkle-star {
-      0%, 80%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); }
-      90%           { opacity: 1; transform: scale(1) rotate(45deg); }
-    }
-
-    :root.myspace .wrap {
-      width: calc(100% - 1.5rem);
-      max-width: 64rem;
-      margin: clamp(0.75rem, 4vw, 3rem) auto;
-      padding: clamp(1rem, 3vw, 2rem);
-      background: #fff;
-      border: 4px ridge #6699cc;
-    }
+    /* ~*~ Easter egg extras for the home page; the rest is in site.css ~*~ */
 
     /* Wide screens: classic two-column profile, you on the left, blog and links on the right. */
     @media (min-width: 60rem) {
@@ -117,30 +63,7 @@
       :root.myspace main section:first-of-type h2 { margin-top: 1.5em; }
     }
 
-    :root.myspace .ms { display: block; }
-    /* 2006 had no nav bar. */
-    :root.myspace .site { display: none; }
     :root.myspace .title { border-bottom: 3px dotted #ff3399; }
-
-    :root.myspace h1 {
-      background: linear-gradient(90deg, #ff3399, #ff9900, #ffee00, #33cc33, #3399ff, #9933ff, #ff3399);
-      background-size: 200% auto;
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-      animation: rainbow 3s linear infinite;
-    }
-
-    @keyframes rainbow { to { background-position: 200% center; } }
-
-    :root.myspace h2 {
-      padding: 0.1rem 0.5rem;
-      background: #6699cc;
-      color: #fff;
-    }
-
-    :root.myspace h2::before { content: "♥ "; color: #ffccee; }
-    :root.myspace li::before { content: "★ "; color: #ff9900; }
 
     .marquee {
       overflow: hidden;
@@ -231,42 +154,11 @@
   </div>
 
   <script>
-    var root = document.documentElement;
-
-    // Easter egg: double-click the footer stars to travel back to 2006.
-    var pageTitle = document.title;
-    var twinkles;
-
-    // Scatter stars across the screen, each with its own pace and start time,
-    // so only a few twinkle at once and in different places.
-    function makeTwinkles() {
-      var colors = ["#ffffff", "#ff66cc", "#33ccff", "#ffff66"];
-      twinkles = document.createElement("div");
-      twinkles.className = "twinkles";
-      twinkles.setAttribute("aria-hidden", "true");
-      for (var i = 0; i < 28; i++) {
-        var star = document.createElement("span");
-        var duration = 5 + Math.random() * 7; // 5–12s per cycle
-        star.textContent = "✦";
-        star.style.left = Math.random() * 100 + "%";
-        star.style.top = Math.random() * 100 + "%";
-        star.style.fontSize = 10 + Math.random() * 12 + "px";
-        star.style.color = colors[i % colors.length];
-        star.style.animationDuration = duration + "s";
-        star.style.animationDelay = -Math.random() * duration + "s";
-        twinkles.appendChild(star);
-      }
-      document.body.prepend(twinkles);
-    }
-
-    document.querySelector(".site-footer .stars").addEventListener("dblclick", function () {
-      if (!twinkles) makeTwinkles();
-      var on = root.classList.toggle("myspace");
-      document.title = on ? "~*~ Chris's Page ~*~" : pageTitle;
-      if (on) {
-        var n = String(Math.floor(Math.random() * 999999));
-        document.getElementById("hits").textContent = ("000000" + n).slice(-6);
-      }
+    document.addEventListener("myspace", function (e) {
+      if (!e.detail.on) return;
+      document.title = "~*~ Chris's Page ~*~";
+      var n = String(Math.floor(Math.random() * 999999));
+      document.getElementById("hits").textContent = ("000000" + n).slice(-6);
     });
   </script>
 </body>
