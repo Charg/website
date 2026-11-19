@@ -79,7 +79,7 @@ func build(src fs.FS, out string, now time.Time) (result, error) {
 	if err != nil {
 		return result{}, err
 	}
-	footer, err := readFill(src, "templates/footer.html", "{{year}}", fmt.Sprint(now.UTC().Year()))
+	footer, err := readString(src, "templates/footer.html")
 	if err != nil {
 		return result{}, err
 	}

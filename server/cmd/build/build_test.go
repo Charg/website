@@ -22,7 +22,7 @@ func testSrc() fstest.MapFS {
 		"templates/post.html":      f(page("<title>{{title}}</title><time>{{date}}</time>{{content}}")),
 		"templates/blog.html":      f(page("<ul>\n{{posts}}\n</ul>")),
 		"templates/header.html":    f(`<nav><a href="/blog/"{{current:blog}}>blog</a><a href="/"{{current:home}}>home</a></nav>`),
-		"templates/footer.html":    f("<footer>© {{year}}</footer>"),
+		"templates/footer.html":    f("<footer>footer</footer>"),
 		"tools/index.html":         f(page("tools")),
 		"tools/x.html":             f(page(`<script src="/assets/x.js"></script><script>alert(1)</script>`)),
 		"assets/site.css":          f("body{}"),
@@ -80,7 +80,7 @@ func TestBuild(t *testing.T) {
 			`          <li><a href="/blog/old.html">Old [one]</a>`,
 		`<a href="/"`+` aria-current="page">home`,
 		`<a href="/blog/">blog`,
-		"© 2026")
+		"<footer>footer</footer>")
 	contains("blog/index.html", `        <li><a href="/blog/new.html">`, `<a href="/blog/" aria-current="page">blog`)
 	contains("blog/new.html", "<title>A &amp; &lt;b&gt;</title>", "<time>2026-02-01</time>", "<span>raw</span>",
 		`<a href="/blog/" aria-current="true">blog`)
