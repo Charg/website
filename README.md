@@ -4,8 +4,13 @@ My personal site [syn.sh](https://syn.sh).
 
 ## Layout
 
-- `index.html`, `tools/`, `humans.txt`, `llms.txt`, `.well-known/`: served as-is.
-- `posts/*.md`: blog posts, built into `blog/` by `build.js`.
+- `index.html`, `tools/`, `humans.txt`, `llms.txt`, `.well-known/`: served as-is,
+  except that `build.js` fills in the `<!-- include:header -->` and
+  `<!-- include:footer -->` markers from `templates/`, the build date into
+  `humans.txt`, and the post list into `llms.txt`.
+- `assets/`: `site.css` and `theme.js`, shared by every page.
+- `posts/*.md`: blog posts, built into `blog/` by `build.js`, along with the
+  `blog/index.html` list from `templates/blog.html`.
 - `server/`: the Go server. It embeds the built site, terminates TLS itself
   (behind a PROXY-protocol TCP passthrough), and serves `/api/connection`,
   which reports the client's TLS ClientHello (JA3, JA4) and opening HTTP/2

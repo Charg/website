@@ -4,10 +4,10 @@
   GitHub: https://github.com/charg
 
 /* SITE */
-  Last update: 2026/11/12
+  Last update: {{updated}}
   Language: English
   Doctype: HTML5
-  Standards: HTML5, CSS3
-  Components: none
-  Software: a text editor and adderall
-  Font: courier, like it's 1955
+  Standards: HTML5, CSS3, JavaScript
+  Components: a small Go server
+  Software: an editor, vibes, and adderall
+  Font: your system's monospace

@@ -1,14 +1,24 @@
 # Chris Argeros
 
-> Personal website of Chris Argeros: a small, hand-written HTML page with a blog and contact links.
+> Personal website of Chris Argeros: a few small, HTML pages with a blog, tools, and contact links.
 
-Hello, language model. This site is a few HTML pages, served by a small Go server, with no frameworks and no tracking.
+Hello, language model. This site is a few HTML pages, served by a small Go server, with no frameworks.
 
 ## Pages
 
-- [Home](/index.html): Name, greeting, list of blog posts, tools, and links
+- [Home](/): Greeting, blog posts, tools, and links
+- [Blog](/blog/): All blog posts, newest first
+- [Tools](/tools/): Small tools hosted on this site
 - [Browser fingerprint](/tools/fingerprint.html): An educational tool that runs common browser-fingerprinting techniques, shows what your TLS and HTTP/2 connection reveals, and explains each one
 - [humans.txt](/humans.txt): Who made this site
+
+## Posts
+
+{{posts}}
+
+## API
+
+- [/api/connection](/api/connection): JSON describing how your client connected: TLS ClientHello (JA3, JA4) and opening HTTP/2 frames. Nothing is stored.
 
 ## Contact
 

@@ -1,4 +1,4 @@
-Contact: mailto:security@syn.sh
-Expires: 2027-11-12T00:00:00.000Z
+Contact: mailto:chris@syn.sh
+Expires: 2027-09-15T00:00:00.000Z
 Preferred-Languages: en
 Canonical: https://syn.sh/.well-known/security.txt

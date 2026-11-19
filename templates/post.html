@@ -5,74 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{title}} · Chris Argeros</title>
   <link rel="author" href="/humans.txt">
-  <script>
-    try {
-      var saved = localStorage.getItem("theme");
-      if (saved) document.documentElement.dataset.theme = saved;
-    } catch (e) {}
-  </script>
+  <link rel="stylesheet" href="/assets/site.css">
+  <script src="/assets/theme.js"></script>
   <style>
-    :root {
-      color-scheme: light;
-      --bg: #f8f7f3;
-      --text: #111111;
-      --muted: #888888;
-      --link: #1a3fa8;
-      --visited: #6b2c91;
-      --code-bg: #ecebe5;
-    }
+    :root { --code-bg: #ecebe5; }
 
     @media (prefers-color-scheme: dark) {
-      :root:not([data-theme="light"]) {
-        color-scheme: dark;
-        --bg: #000000;
-        --text: #ededed;
-        --muted: #777777;
-        --link: #8ab4ff;
-        --visited: #c3a6ff;
-        --code-bg: #1a1a1a;
-      }
+      :root:not([data-theme="light"]) { --code-bg: #1a1a1a; }
     }
 
-    :root[data-theme="dark"] {
-      color-scheme: dark;
-      --bg: #000000;
-      --text: #ededed;
-      --muted: #777777;
-      --link: #8ab4ff;
-      --visited: #c3a6ff;
-      --code-bg: #1a1a1a;
-    }
+    :root[data-theme="dark"] { --code-bg: #1a1a1a; }
 
-    *, *::before, *::after { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: ui-monospace, "SF Mono", "Cascadia Code", "Segoe UI Mono", "Roboto Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
-      font-size: clamp(1rem, 0.9rem + 0.4vw, 1.25rem);
-      line-height: 1.7;
-      overflow-wrap: break-word;
-    }
-
-    .wrap {
-      max-width: 58ch;
-      margin: 0 auto;
-      padding: clamp(2.5rem, 10vh, 7rem) clamp(1rem, 5vw, 2rem);
-    }
-
-    nav { margin-bottom: 2rem; }
-
-    header {
-      padding-bottom: 0.5rem;
-      border-bottom: 2px dashed var(--muted);
-    }
-
-    h1 {
-      margin: 0;
-      font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.25rem);
-      line-height: 1.2;
+    .page-head time {
+      display: block;
+      margin-top: 0.4em;
+      font-size: 0.8em;
     }
 
     time { color: var(--muted); }
@@ -80,13 +27,6 @@
     h2, h3 { margin: 2em 0 0.5em; font-size: 1em; }
     h2::before { content: "## "; color: var(--muted); }
     h3::before { content: "### "; color: var(--muted); }
-
-    a { color: var(--link); text-underline-offset: 0.2em; }
-    a:visited { color: var(--visited); }
-
-    @media (hover: hover) {
-      a:hover { background: var(--link); color: var(--bg); text-decoration: none; }
-    }
 
     img { max-width: 100%; height: auto; }
 
@@ -106,14 +46,16 @@
 </head>
 <body>
   <div class="wrap">
-    <nav><a href="/">← home</a></nav>
+    <!-- include:header -->
     <article>
-      <header>
+      <header class="page-head">
         <h1>{{title}}</h1>
         <time datetime="{{date}}">{{date}}</time>
       </header>
 {{content}}
     </article>
+
+    <!-- include:footer -->
   </div>
 </body>
 </html>

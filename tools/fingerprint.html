@@ -6,20 +6,10 @@
   <title>Browser fingerprint · Chris Argeros</title>
   <meta name="description" content="See the signals websites use to fingerprint your browser, how each one works, and how to defend against them. The probes run locally, and the results never leave your browser.">
   <link rel="author" href="/humans.txt">
-  <script>
-    try {
-      var saved = localStorage.getItem("theme");
-      if (saved) document.documentElement.dataset.theme = saved;
-    } catch (e) {}
-  </script>
+  <link rel="stylesheet" href="/assets/site.css">
+  <script src="/assets/theme.js"></script>
   <style>
     :root {
-      color-scheme: light;
-      --bg: #f8f7f3;
-      --text: #111111;
-      --muted: #888888;
-      --link: #1a3fa8;
-      --visited: #6b2c91;
       --code-bg: #ecebe5;
       --high: #b3261e;
       --medium: #a15c00;
@@ -28,12 +18,6 @@
 
     @media (prefers-color-scheme: dark) {
       :root:not([data-theme="light"]) {
-        color-scheme: dark;
-        --bg: #000000;
-        --text: #ededed;
-        --muted: #777777;
-        --link: #8ab4ff;
-        --visited: #c3a6ff;
         --code-bg: #1a1a1a;
         --high: #ff8a80;
         --medium: #ffcc80;
@@ -42,60 +26,23 @@
     }
 
     :root[data-theme="dark"] {
-      color-scheme: dark;
-      --bg: #000000;
-      --text: #ededed;
-      --muted: #777777;
-      --link: #8ab4ff;
-      --visited: #c3a6ff;
       --code-bg: #1a1a1a;
       --high: #ff8a80;
       --medium: #ffcc80;
       --low: #a5d6a7;
     }
 
-    *, *::before, *::after { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: ui-monospace, "SF Mono", "Cascadia Code", "Segoe UI Mono", "Roboto Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
-      font-size: clamp(1rem, 0.9rem + 0.4vw, 1.25rem);
-      line-height: 1.7;
-      overflow-wrap: break-word;
-    }
-
     /* A little wider than the blog: the results have long values. */
-    .wrap {
-      max-width: 72ch;
-      margin: 0 auto;
-      padding: clamp(2.5rem, 10vh, 7rem) clamp(1rem, 5vw, 2rem);
-    }
+    .wrap { max-width: 72ch; }
 
-    nav { margin-bottom: 2rem; }
-
-    header {
+    .intro {
       padding-bottom: 0.5rem;
       border-bottom: 2px dashed var(--muted);
-    }
-
-    h1 {
-      margin: 0;
-      font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.25rem);
-      line-height: 1.2;
     }
 
     h2, h3 { margin: 2.5em 0 0.5em; font-size: 1em; }
     h2::before { content: "## "; color: var(--muted); }
     h3::before { content: "### "; color: var(--muted); }
-
-    a { color: var(--link); text-underline-offset: 0.2em; }
-    a:visited { color: var(--visited); }
-
-    @media (hover: hover) {
-      a:hover { background: var(--link); color: var(--bg); text-decoration: none; }
-    }
 
     code { background: var(--code-bg); padding: 0.1em 0.3em; }
     pre { background: var(--code-bg); padding: 1rem; overflow-x: auto; font-size: 0.8em; line-height: 1.5; }
@@ -304,9 +251,9 @@
   <aside class="panel" id="panel" aria-label="Your fingerprint"></aside>
 
   <div class="wrap">
-    <nav><a href="/">← home</a></nav>
+    <!-- include:header -->
 
-    <header>
+    <header class="intro">
       <h1>Browser fingerprint</h1>
       <span class="muted">a tool · how websites recognise you without cookies</span>
     </header>
@@ -681,6 +628,8 @@ try { null.x } catch (e) { e.message }
 
     <!-- Bait for the ad-blocker probe: ad blockers hide elements with these class names. -->
     <div class="bait ad ads adsbox ad-banner ad-placement textads banner-ads" aria-hidden="true">&nbsp;</div>
+
+    <!-- include:footer -->
   </div>
 
   <div class="toc-col" id="toc-col"></div>

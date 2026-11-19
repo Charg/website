@@ -59,6 +59,7 @@ mkdirSync(OUT_DIR);
 
 const template = readFileSync("templates/post.html", "utf8");
 for (const post of posts) {
+  if (post.slug === "index") throw new Error("posts/index.md: clashes with the blog index page");
   const page = template
     .replaceAll("{{title}}", escape(post.title))
     .replaceAll("{{date}}", post.date)
@@ -71,12 +72,21 @@ for (const post of posts) {
   }
 }
 
+// The post list, for the home page and the blog index.
+const postList = (indent) =>
+  posts.length
+    ? posts
+        .map((p) => `${indent}<li><a href="/blog/${p.slug}.html">${escape(p.title)}</a> <time datetime="${p.date}">${p.date}</time></li>`)
+        .join("\n")
+    : `${indent}<li>Nothing yet.</li>`;
+
+writeFileSync(
+  `${OUT_DIR}/index.html`,
+  readFileSync("templates/blog.html", "utf8").replace("{{posts}}", () => postList("        ")),
+);
+
 // Rewrite the list on the home page.
-const list = posts.length
-  ? posts
-      .map((p) => `          <li><a href="/blog/${p.slug}.html">${escape(p.title)}</a> <time datetime="${p.date}">${p.date}</time></li>`)
-      .join("\n")
-  : `          <li>Nothing yet.</li>`;
+const list = postList("          ");
 
 const index = readFileSync("index.html", "utf8");
 const markers = /<!-- posts:start -->[\s\S]*?<!-- posts:end -->/;
@@ -86,17 +96,64 @@ writeFileSync(
   index.replace(markers, () => `<!-- posts:start -->\n${list}\n          <!-- posts:end -->`),
 );
 
-// Build the Content-Security-Policy, which the Go server sends on every response.
-// Inline <script> blocks are allowed by hash, so the policy is regenerated on
-// every build and any edit to an inline script is picked up automatically.
+// Stage the public files for the Go server, which embeds server/site/.
+const SITE_DIR = "server/site";
+const PUBLIC = ["index.html", "humans.txt", "llms.txt", ".well-known", "assets", OUT_DIR, "tools"];
+mkdirSync(SITE_DIR, { recursive: true });
+for (const f of readdirSync(SITE_DIR)) {
+  if (f !== ".gitkeep") rmSync(`${SITE_DIR}/${f}`, { recursive: true, force: true });
+}
+for (const f of PUBLIC) cpSync(f, `${SITE_DIR}/${f}`, { recursive: true });
+
+// Fill in the placeholders in the staged text files: the build date in
+// humans.txt and the post list in llms.txt.
+const fill = (file, placeholder, value) => {
+  const path = `${SITE_DIR}/${file}`;
+  const text = readFileSync(path, "utf8");
+  if (!text.includes(placeholder)) throw new Error(`${file}: missing ${placeholder}`);
+  writeFileSync(path, text.replace(placeholder, () => value));
+};
+fill("humans.txt", "{{updated}}", new Date().toISOString().slice(0, 10).replaceAll("-", "/"));
+fill(
+  "llms.txt",
+  "{{posts}}",
+  posts.length
+    ? posts.map((p) => `- [${p.title.replace(/[[\]]/g, "\\$&")}](/blog/${p.slug}.html): ${p.date}`).join("\n")
+    : "Nothing yet.",
+);
+
+// Fill in the shared header and footer on every staged page. The nav marks
+// the section the page belongs to: "page" on the section's own index page,
+// "true" on the pages inside it.
 const pages = [
   "index.html",
   ...readdirSync(OUT_DIR).filter((f) => f.endsWith(".html")).map((f) => `${OUT_DIR}/${f}`),
   ...readdirSync("tools").filter((f) => f.endsWith(".html")).map((f) => `tools/${f}`),
 ];
+const header = readFileSync("templates/header.html", "utf8");
+const footer = readFileSync("templates/footer.html", "utf8").replace("{{year}}", new Date().getFullYear());
+for (const page of pages) {
+  const section = page === "index.html" ? "home" : page.split("/")[0];
+  const current = page.endsWith("index.html") ? "page" : "true";
+  const nav = header.replace(/\{\{current:(\w+)\}\}/g, (_, s) => (s === section ? ` aria-current="${current}"` : ""));
+
+  const path = `${SITE_DIR}/${page}`;
+  const html = readFileSync(path, "utf8");
+  for (const marker of ["<!-- include:header -->", "<!-- include:footer -->"]) {
+    if (!html.includes(marker)) throw new Error(`${page}: missing ${marker}`);
+  }
+  writeFileSync(
+    path,
+    html.replace("<!-- include:header -->", () => nav).replace("<!-- include:footer -->", () => footer),
+  );
+}
+
+// Build the Content-Security-Policy, which the Go server sends on every response.
+// Inline <script> blocks are allowed by hash, so the policy is regenerated on
+// every build and any edit to an inline script is picked up automatically.
 const hashes = new Set();
 for (const page of pages) {
-  for (const [, attrs, body] of readFileSync(page, "utf8").matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)) {
+  for (const [, attrs, body] of readFileSync(`${SITE_DIR}/${page}`, "utf8").matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)) {
     if (/\bsrc=/.test(attrs)) continue;
     hashes.add(`'sha256-${createHash("sha256").update(body).digest("base64")}'`);
   }
@@ -112,14 +169,6 @@ const csp = [
   "form-action 'self'",
 ].join("; ");
 
-// Stage the public files for the Go server, which embeds server/site/.
-const SITE_DIR = "server/site";
-const PUBLIC = ["index.html", "humans.txt", "llms.txt", ".well-known", OUT_DIR, "tools"];
-mkdirSync(SITE_DIR, { recursive: true });
-for (const f of readdirSync(SITE_DIR)) {
-  if (f !== ".gitkeep") rmSync(`${SITE_DIR}/${f}`, { recursive: true, force: true });
-}
-for (const f of PUBLIC) cpSync(f, `${SITE_DIR}/${f}`, { recursive: true });
 writeFileSync(`${SITE_DIR}/.csp`, `${csp}\n`);
 
 console.log(`Built ${posts.length} post(s), CSP with ${hashes.size} inline script hash(es).`);
