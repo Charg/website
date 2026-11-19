@@ -1,0 +1,51 @@
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:best-practices',
+  ],
+  labels: [
+    'dependencies',
+  ],
+  timezone: 'America/Los_Angeles',
+  minimumReleaseAge: '7 days',
+  internalChecksFilter: 'strict',
+  prCreation: 'not-pending',
+  automergeType: 'pr',
+  automergeStrategy: 'squash',
+  platformAutomerge: false,
+  // Merge green PRs even when behind main; otherwise each run rebases instead of merging.
+  rebaseWhen: 'conflicted',
+  // Merges here ship to production, so only merge while someone is around.
+  automergeSchedule: [
+    '* 8-11 * * 1-5',
+  ],
+  postUpdateOptions: [
+    'gomodTidy',
+  ],
+  lockFileMaintenance: {
+    enabled: true,
+  },
+  nix: {
+    enabled: true,
+  },
+  packageRules: [
+    {
+      matchUpdateTypes: ['minor', 'patch', 'digest', 'pin', 'pinDigest', 'lockFileMaintenance'],
+      automerge: true,
+    },
+    {
+      matchUpdateTypes: ['major'],
+      automerge: false,
+    },
+    // go.mod's go directive and the golang builder image move together.
+    {
+      matchDepTypes: ['golang'],
+      rangeStrategy: 'bump',
+    },
+    {
+      matchPackageNames: ['go', 'golang'],
+      groupName: 'go toolchain',
+      groupSlug: 'go-toolchain',
+    },
+  ],
+}
