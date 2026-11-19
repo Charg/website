@@ -1,6 +1,6 @@
 module github.com/charg/website/server
 
-go 1.27.3
+go 1.27.4
 
 require (
 	github.com/pires/go-proxyproto v0.16.0

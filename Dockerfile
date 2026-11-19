@@ -1,7 +1,7 @@
 # Build the site, then the Go server that embeds and serves it.
 # Both build stages run on the build machine; Go cross-compiles the binary.
 
-FROM --platform=$BUILDPLATFORM node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS site
+FROM --platform=$BUILDPLATFORM node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS site
 WORKDIR /src
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -19,7 +19,7 @@ RUN CGO_ENABLED=0 go test ./...
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/server .
 
 # Non-root, no shell. TLS on 8443 (behind a PROXY-protocol passthrough), /healthz on 8081.
-FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
+FROM gcr.io/distroless/static-debian13:nonroot@sha256:aafe993665bf6200db38a02c11a9351e782a84b6a45e7f33b6695638c88e3931
 COPY --from=server /out/server /server
 EXPOSE 8443 8081
 ENTRYPOINT ["/server"]

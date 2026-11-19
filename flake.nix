@@ -11,7 +11,7 @@
     {
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
-          packages = [ pkgs.nodejs_24 pkgs.go ];
+          packages = [ pkgs.nodejs_26 pkgs.go ];
         };
       });
     };
