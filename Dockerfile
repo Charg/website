@@ -1,21 +1,13 @@
 # Build the site, then the Go server that embeds and serves it.
-# Both build stages run on the build machine; Go cross-compiles the binary.
-
-FROM --platform=$BUILDPLATFORM node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS site
-WORKDIR /src
-COPY package.json package-lock.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
+# This stage runs on the build machine; Go cross-compiles the binary.
 
 FROM --platform=$BUILDPLATFORM golang:1.27-alpine@sha256:70bd7ddea8b6cbe5d6943cde279d6b67feb10cc924fb9100d1d8757c1575b280 AS server
 ARG TARGETOS TARGETARCH
 WORKDIR /src/server
 COPY server/go.mod server/go.sum ./
 RUN go mod download
-COPY server/ ./
-COPY --from=site /src/server/site ./site
-RUN CGO_ENABLED=0 go test ./...
+COPY . /src
+RUN CGO_ENABLED=0 go generate . && CGO_ENABLED=0 go test ./...
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/server .
 
 # Non-root, no shell. TLS on 8443 (behind a PROXY-protocol passthrough), /healthz on 8081.

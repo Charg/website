@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// cspFile is written into the site directory by build.js. Dotfiles are never
+// cspFile is written into the site directory by cmd/build. Dotfiles are never
 // served, so it stays private to the server.
 const cspFile = ".csp"
 
@@ -64,10 +64,10 @@ func loadSite(fsys fs.FS) (*site, error) {
 		return nil, err
 	}
 	if s.csp == "" {
-		return nil, errors.New("site: missing " + cspFile + " (run npm run build)")
+		return nil, errors.New("site: missing " + cspFile + " (run go generate)")
 	}
 	if _, ok := s.files["index.html"]; !ok {
-		return nil, errors.New("site: missing index.html (run npm run build)")
+		return nil, errors.New("site: missing index.html (run go generate)")
 	}
 	return s, nil
 }

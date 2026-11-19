@@ -5,23 +5,24 @@ My personal site [syn.sh](https://syn.sh).
 ## Layout
 
 - `index.html`, `tools/`, `humans.txt`, `llms.txt`, `.well-known/`: served as-is,
-  except that `build.js` fills in the `<!-- include:header -->` and
+  except that the build fills in the `<!-- include:header -->` and
   `<!-- include:footer -->` markers from `templates/`, the build date into
   `humans.txt`, and the post list into `llms.txt`.
 - `assets/`: `site.css` and `theme.js`, shared by every page.
-- `posts/*.md`: blog posts, built into `blog/` by `build.js`, along with the
-  `blog/index.html` list from `templates/blog.html`.
+- `posts/*.md`: blog posts, built into `blog/` along with the `blog/index.html`
+  list from `templates/blog.html`. The build also fills in the post list in
+  `index.html` (`{{posts}}`) and the Content-Security-Policy.
 - `server/`: the Go server. It embeds the built site, terminates TLS itself
   (behind a PROXY-protocol TCP passthrough), and serves `/api/connection`,
   which reports the client's TLS ClientHello (JA3, JA4) and opening HTTP/2
-  frames for the fingerprint tool.
+  frames for the fingerprint tool. `server/cmd/build` is the site build; it
+  writes everything into `server/site/`, never back into the source files.
 
 ## Develop
 
 ```sh
-npm ci
-npm run build                 # blog, CSP, and server/site/
 cd server
+go generate                   # blog, CSP, and server/site/
 go test ./...
 go run . -self-signed -proxy-protocol=false -addr 127.0.0.1:8443
 ```

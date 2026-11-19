@@ -20,6 +20,8 @@ import (
 	"golang.org/x/net/netutil"
 )
 
+//go:generate go run ./cmd/build -root ..
+
 //go:embed all:site
 var embedded embed.FS
 

@@ -1,6 +1,4 @@
 .playwright-mcp/
-node_modules/
 .direnv/
-blog/
 server/site/*
 !server/site/.gitkeep
