@@ -48,7 +48,11 @@ func main() {
 	flag.StringVar(&c.trustedProxies, "trusted-proxies", "", "comma-separated IPs/CIDRs allowed to send PROXY headers; others are refused (empty: any peer)")
 	flag.IntVar(&c.maxConns, "max-conns", 1024, "maximum open connections")
 	flag.IntVar(&c.maxConnsPerIP, "max-conns-per-ip", 32, "maximum open connections per client IP (IPv6: per /64); 0 disables")
+	var level slog.Level
+	flag.TextVar(&level, "log-level", slog.LevelInfo, "minimum log level: DEBUG, INFO, WARN or ERROR")
 	flag.Parse()
+
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})))
 
 	if err := run(c); err != nil {
 		slog.Error("exiting", "err", err)
@@ -97,7 +101,7 @@ func run(c config) error {
 		tlsConfig.GetCertificate = certs.get
 	}
 
-	srv, err := newServer(tlsConfig, routes(st))
+	srv, err := newServer(tlsConfig, logRequests(slog.Default(), routes(st)))
 	if err != nil {
 		return err
 	}
