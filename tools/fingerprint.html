@@ -60,6 +60,7 @@
       border: 2px dashed var(--muted);
     }
     .summary p { margin: 0.25em 0; }
+    .summary .core-label { margin-top: 1em; }
     .id {
       font-size: clamp(1.25rem, 1rem + 1.5vw, 2rem);
       font-weight: 700;
@@ -281,7 +282,7 @@
       <p class="muted">Exact fingerprint (every stable signal):</p>
       <p class="id" id="fp-id">computing…</p>
       <p class="muted" id="fp-meta">&nbsp;</p>
-      <p class="muted" style="margin-top: 1em">Core fingerprint (only signals that are hard to change):</p>
+      <p class="muted core-label">Core fingerprint (only signals that are hard to change):</p>
       <p class="id" id="fp-core">computing…</p>
       <p class="muted" id="fp-core-meta">&nbsp;</p>
     </div>

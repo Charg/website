@@ -35,5 +35,5 @@ func main() {
 		fmt.Fprintln(os.Stderr, "build:", err)
 		os.Exit(1)
 	}
-	fmt.Printf("Built %d post(s), CSP with %d inline script hash(es).\n", res.posts, res.hashes)
+	fmt.Printf("Built %d post(s), CSP with %d inline script and %d inline style hash(es).\n", res.posts, res.scripts, res.styles)
 }

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -16,18 +19,18 @@ func page(body string) string {
 func testSrc() fstest.MapFS {
 	f := func(s string) *fstest.MapFile { return &fstest.MapFile{Data: []byte(s)} }
 	return fstest.MapFS{
-		"index.html":               f(page("<ul>\n{{posts}}\n</ul><script>alert(1)</script>")),
+		"index.html":               f(page("<ul>\n{{posts}}\n</ul><script>alert(1)</script><style>\n  .i { font-style: italic }\n</style>")),
 		"humans.txt":               f("Last update: {{updated}}\n"),
 		"llms.txt":                 f("## Posts\n\n{{posts}}\n"),
-		"templates/post.html":      f(page("<title>{{title}}</title><time>{{date}}</time>{{content}}")),
+		"templates/post.html":      f(page("<title>{{title}}</title><style>p{}</style><time>{{date}}</time>{{content}}")),
 		"templates/blog.html":      f(page("<ul>\n{{posts}}\n</ul>")),
-		"templates/header.html":    f(`<nav><a href="/blog/"{{current:blog}}>blog</a><a href="/"{{current:home}}>home</a></nav>`),
+		"templates/header.html":    f(`<nav data-style="x"><a href="/blog/"{{current:blog}}>blog</a><a href="/"{{current:home}}>home</a></nav><style media="print">nav{}</style>`),
 		"templates/footer.html":    f("<footer>footer</footer>"),
 		"tools/index.html":         f(page("tools")),
-		"tools/x.html":             f(page(`<script src="/assets/x.js"></script><script>alert(1)</script>`)),
+		"tools/x.html":             f(page(`<script src="/assets/x.js"></script><script>alert(1)</script><script>el.style = "a"; s = '<b style="x">'</script><p>style="not an attribute"</p>`)),
 		"assets/site.css":          f("body{}"),
 		".well-known/security.txt": f("Contact: x"),
-		"posts/old.md":             f("---\ntitle: Old [one]\ndate: 2026-01-01\n---\n\n![shot](old/shot.png)\n"),
+		"posts/old.md":             f("---\ntitle: Old [one]\ndate: 2026-01-01\n---\n\n![shot](old/shot.png)\n\n| a | b |\n|:-:|--:|\n| c | d |\n\n<style>.m{}</style>\n"),
 		"posts/old/shot.png":       f("png"),
 		"posts/new.md":             f("---\r\ntitle: A & <b>\r\ndate: 2026-02-01\r\n---\r\n\nHi <span>raw</span>\n"),
 		"posts/wip.md":             f("---\ntitle: WIP\ndate: 2026-03-01\ndraft: true\n---\n\nsoon\n"),
@@ -47,7 +50,7 @@ func TestBuild(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res != (result{posts: 2, hashes: 1}) {
+	if res != (result{posts: 2, scripts: 2, styles: 4}) {
 		t.Errorf("result = %+v", res)
 	}
 
@@ -84,7 +87,7 @@ func TestBuild(t *testing.T) {
 	contains("blog/index.html", `        <li><a href="/blog/new.html">`, `<a href="/blog/" aria-current="page">blog`)
 	contains("blog/new.html", "<title>A &amp; &lt;b&gt;</title>", "<time>2026-02-01</time>", "<span>raw</span>",
 		`<a href="/blog/" aria-current="true">blog`)
-	contains("blog/old.html", `<img src="old/shot.png" alt="shot" loading="lazy">`)
+	contains("blog/old.html", `<img src="old/shot.png" alt="shot" loading="lazy">`, `<th align="center">a</th>`, `<td align="right">d</td>`)
 	contains("blog/old/shot.png", "png")
 	contains("tools/x.html", `<a href="/blog/">blog`, `<a href="/">home`)
 	contains("tools/index.html", "tools")
@@ -93,7 +96,28 @@ func TestBuild(t *testing.T) {
 	contains("humans.txt", "Last update: 2026/11/19")
 	contains("llms.txt", "- [A & <b>](/blog/new.html): 2026-02-01\n- [Old \\[one\\]](/blog/old.html): 2026-01-01")
 	// sha256("alert(1)"), computed independently with openssl.
-	contains(".csp", "script-src 'self' 'sha256-bhHHL3z2vDgxUt0W3dWQOrprscmda2Y5pLsLg4GF+pI=';", "frame-ancestors 'none'")
+	contains(".csp", "script-src 'self' 'sha256-bhHHL3z2vDgxUt0W3dWQOrprscmda2Y5pLsLg4GF+pI=' ", "frame-ancestors 'none'",
+		// sha256("p{}"), computed independently with openssl.
+		"style-src 'self' 'sha256-",
+		"'sha256-gG2yISYereRMiG2lMXrbiUgi0Ubw9p7QCeWcroOvy9Y='")
+	csp := read(".csp")
+	if strings.Contains(csp, "unsafe-inline") {
+		t.Errorf(".csp allows unsafe-inline: %s", csp)
+	}
+	// Every inline style in every built page is allowed, hashed over the bytes as served.
+	styleBlock := regexp.MustCompile(`(?s)<style[^>]*>(.*?)</style>`)
+	for _, name := range []string{"index.html", "blog/index.html", "blog/new.html", "blog/old.html", "tools/index.html", "tools/x.html"} {
+		blocks := styleBlock.FindAllStringSubmatch(read(name), -1)
+		if len(blocks) == 0 {
+			t.Errorf("%s: no inline styles", name)
+		}
+		for _, m := range blocks {
+			sum := sha256.Sum256([]byte(m[1]))
+			if h := "'sha256-" + base64.StdEncoding.EncodeToString(sum[:]) + "'"; !strings.Contains(csp, "style-src 'self' ") || !strings.Contains(csp, h) {
+				t.Errorf("%s: style %q (%s) not in CSP: %s", name, m[1], h, csp)
+			}
+		}
+	}
 
 	missing("blog/wip.html")
 	missing("stale.html")
@@ -135,6 +159,9 @@ func TestBuildErrors(t *testing.T) {
 		"index slug":      {"posts/index.md", "---\ntitle: A\ndate: 2026-01-01\n---\nx", "posts/index.md: clashes"},
 		"no header":       {"tools/y.html", "<p>" + footerMarker, "tools/y.html: missing " + headerMarker},
 		"no posts slot":   {"index.html", page(""), "index.html: missing {{posts}}"},
+		"style attr":      {"tools/y.html", page(`<p class="a" STYLE = "color: red">`), `tools/y.html: style attribute is blocked by the CSP: <p class="a" STYLE = "color: red">`},
+		"style attr post": {"posts/a.md", "---\ntitle: A\ndate: 2026-01-01\n---\n<span style=\"x\">hi</span>", "blog/a.html: style attribute"},
+		"style attr tmpl": {"templates/footer.html", `<footer style="x">`, "index.html: style attribute"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			src := testSrc()

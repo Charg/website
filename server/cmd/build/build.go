@@ -36,7 +36,7 @@ type post struct {
 	html              string
 }
 
-type result struct{ posts, hashes int }
+type result struct{ posts, scripts, styles int }
 
 func build(src fs.FS, out string, now time.Time) (result, error) {
 	posts, err := loadPosts(src)
@@ -84,21 +84,22 @@ func build(src fs.FS, out string, now time.Time) (result, error) {
 		return result{}, err
 	}
 
-	var hashes []string
+	// Hashed from the final page, since CSP hashes are byte-exact.
+	var scripts, styles []string
 	for _, name := range pageOrder(pages) {
 		page, err := include(name, pages[name], header, footer)
 		if err != nil {
 			return result{}, err
 		}
-		pages[name] = page
-		for _, h := range scriptHashes(page) {
-			if !slices.Contains(hashes, h) {
-				hashes = append(hashes, h)
-			}
+		if attr := styleAttr(page); attr != "" {
+			return result{}, fmt.Errorf("%s: style attribute is blocked by the CSP: %s", name, attr)
 		}
+		pages[name] = page
+		scripts = addNew(scripts, scriptHashes(page))
+		styles = addNew(styles, styleHashes(page))
 	}
 
-	texts := map[string]string{".csp": csp(hashes)}
+	texts := map[string]string{".csp": csp(scripts, styles)}
 	if texts["humans.txt"], err = readFill(src, "humans.txt", "{{updated}}", now.UTC().Format("2006/01/02")); err != nil {
 		return result{}, err
 	}
@@ -134,7 +135,7 @@ func build(src fs.FS, out string, now time.Time) (result, error) {
 			}
 		}
 	}
-	return result{posts: len(posts), hashes: len(hashes)}, nil
+	return result{posts: len(posts), scripts: len(scripts), styles: len(styles)}, nil
 }
 
 func loadPosts(src fs.FS) ([]post, error) {
@@ -196,7 +197,13 @@ func parsePost(slug, raw string) (post, error) {
 }
 
 var markdown = goldmark.New(
-	goldmark.WithExtensions(extension.GFM),
+	// GFM, with table alignment as align attributes: the CSP blocks style attributes.
+	goldmark.WithExtensions(
+		extension.Linkify,
+		extension.NewTable(extension.WithTableCellAlignMethod(extension.TableCellAlignAttribute)),
+		extension.Strikethrough,
+		extension.TaskList,
+	),
 	goldmark.WithParserOptions(parser.WithASTTransformers(util.Prioritized(lazyImages{}, 100))),
 	goldmark.WithRendererOptions(gmhtml.WithUnsafe()),
 )
@@ -286,27 +293,60 @@ func include(name, page, header, footer string) (string, error) {
 	return strings.Replace(page, footerMarker, footer, 1), nil
 }
 
-var scriptTag = regexp.MustCompile(`(?s)<script([^>]*)>(.*?)</script>`)
-var srcAttr = regexp.MustCompile(`\bsrc=`)
+var (
+	scriptTag = regexp.MustCompile(`(?s)<script([^>]*)>(.*?)</script>`)
+	styleTag  = regexp.MustCompile(`(?is)<style([^>]*)>(.*?)</style>`)
+	srcAttr   = regexp.MustCompile(`\bsrc=`)
+	// A start tag with a style attribute; script and style bodies are removed first.
+	styleAttrTag = regexp.MustCompile(`(?i)<[a-z][^>]*\sstyle\s*=[^>]*>`)
+)
 
 // scriptHashes returns CSP sources for the page's inline scripts.
 func scriptHashes(page string) []string {
 	var hashes []string
 	for _, m := range scriptTag.FindAllStringSubmatch(page, -1) {
-		if srcAttr.MatchString(m[1]) {
-			continue
+		if !srcAttr.MatchString(m[1]) {
+			hashes = append(hashes, hash(m[2]))
 		}
-		sum := sha256.Sum256([]byte(m[2]))
-		hashes = append(hashes, "'sha256-"+base64.StdEncoding.EncodeToString(sum[:])+"'")
 	}
 	return hashes
 }
 
-func csp(hashes []string) string {
+// styleHashes returns CSP sources for the page's <style> blocks.
+func styleHashes(page string) []string {
+	var hashes []string
+	for _, m := range styleTag.FindAllStringSubmatch(page, -1) {
+		hashes = append(hashes, hash(m[2]))
+	}
+	return hashes
+}
+
+// styleAttr returns the first tag with a style attribute, which hashes can't allow.
+func styleAttr(page string) string {
+	page = scriptTag.ReplaceAllString(page, "")
+	page = styleTag.ReplaceAllString(page, "")
+	return styleAttrTag.FindString(page)
+}
+
+func hash(s string) string {
+	sum := sha256.Sum256([]byte(s))
+	return "'sha256-" + base64.StdEncoding.EncodeToString(sum[:]) + "'"
+}
+
+func addNew(list, items []string) []string {
+	for _, s := range items {
+		if !slices.Contains(list, s) {
+			list = append(list, s)
+		}
+	}
+	return list
+}
+
+func csp(scripts, styles []string) string {
 	return strings.Join([]string{
 		"default-src 'self'",
-		strings.Join(append([]string{"script-src 'self'"}, hashes...), " "),
-		"style-src 'self' 'unsafe-inline'",
+		strings.Join(append([]string{"script-src 'self'"}, scripts...), " "),
+		strings.Join(append([]string{"style-src 'self'"}, styles...), " "),
 		"img-src 'self' data:",
 		"object-src 'none'",
 		"base-uri 'none'",
