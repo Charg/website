@@ -21,7 +21,11 @@ type clientHello struct {
 	KeyShares    []uint16
 	PSKModes     []uint8
 	CertCompAlgs []uint16
+	Truncated    bool // a list was longer than maxHelloItems and was cut
 }
+
+// maxHelloItems caps each parsed list. Browsers send a few dozen at most.
+const maxHelloItems = 512
 
 const (
 	extServerName      = 0x0000
@@ -82,7 +86,7 @@ func parseClientHello(body []byte) (*clientHello, error) {
 		return nil, errMalformed
 	}
 	var err error
-	if h.CipherSuites, err = readUint16s(suites); err != nil {
+	if h.CipherSuites, err = h.readUint16s(suites); err != nil {
 		return nil, err
 	}
 	if s.Empty() {
@@ -99,7 +103,11 @@ func parseClientHello(body []byte) (*clientHello, error) {
 		if !exts.ReadUint16(&typ) || !exts.ReadUint16LengthPrefixed(&data) {
 			return nil, errMalformed
 		}
-		h.Extensions = append(h.Extensions, typ)
+		if len(h.Extensions) < maxHelloItems {
+			h.Extensions = append(h.Extensions, typ)
+		} else {
+			h.Truncated = true
+		}
 		if err := h.parseExtension(typ, data); err != nil {
 			return nil, err
 		}
@@ -129,17 +137,17 @@ func (h *clientHello) parseExtension(typ uint16, d cryptobyte.String) error {
 		if !d.ReadUint16LengthPrefixed(&list) {
 			return errMalformed
 		}
-		h.Groups, err = readUint16s(list)
+		h.Groups, err = h.readUint16s(list)
 	case extPointFormats:
 		if !d.ReadUint8LengthPrefixed(&list) {
 			return errMalformed
 		}
-		h.PointFormats = append([]uint8(nil), list...)
+		h.PointFormats = append([]uint8(nil), list...) // at most 255
 	case extSigAlgs:
 		if !d.ReadUint16LengthPrefixed(&list) {
 			return errMalformed
 		}
-		h.SigAlgs, err = readUint16s(list)
+		h.SigAlgs, err = h.readUint16s(list)
 	case extALPN:
 		if !d.ReadUint16LengthPrefixed(&list) {
 			return errMalformed
@@ -149,13 +157,17 @@ func (h *clientHello) parseExtension(typ uint16, d cryptobyte.String) error {
 			if !list.ReadUint8LengthPrefixed(&proto) {
 				return errMalformed
 			}
-			h.ALPN = append(h.ALPN, string(proto))
+			if len(h.ALPN) < maxHelloItems {
+				h.ALPN = append(h.ALPN, string(proto))
+			} else {
+				h.Truncated = true
+			}
 		}
 	case extSupportedVers:
 		if !d.ReadUint8LengthPrefixed(&list) {
 			return errMalformed
 		}
-		h.Versions, err = readUint16s(list)
+		h.Versions, err = h.readUint16s(list)
 	case extKeyShare:
 		if !d.ReadUint16LengthPrefixed(&list) {
 			return errMalformed
@@ -166,7 +178,11 @@ func (h *clientHello) parseExtension(typ uint16, d cryptobyte.String) error {
 			if !list.ReadUint16(&group) || !list.ReadUint16LengthPrefixed(&key) {
 				return errMalformed
 			}
-			h.KeyShares = append(h.KeyShares, group)
+			if len(h.KeyShares) < maxHelloItems {
+				h.KeyShares = append(h.KeyShares, group)
+			} else {
+				h.Truncated = true
+			}
 		}
 	case extPSKModes:
 		if !d.ReadUint8LengthPrefixed(&list) {
@@ -177,7 +193,7 @@ func (h *clientHello) parseExtension(typ uint16, d cryptobyte.String) error {
 		if !d.ReadUint8LengthPrefixed(&list) {
 			return errMalformed
 		}
-		h.CertCompAlgs, err = readUint16s(list)
+		h.CertCompAlgs, err = h.readUint16s(list)
 	default:
 		return nil
 	}
@@ -190,15 +206,18 @@ func (h *clientHello) parseExtension(typ uint16, d cryptobyte.String) error {
 	return nil
 }
 
-func readUint16s(s cryptobyte.String) ([]uint16, error) {
+// readUint16s reads a list of uint16s, keeping at most maxHelloItems.
+func (h *clientHello) readUint16s(s cryptobyte.String) ([]uint16, error) {
 	if len(s)%2 != 0 {
 		return nil, errMalformed
 	}
-	out := make([]uint16, 0, len(s)/2)
-	for !s.Empty() {
-		var v uint16
-		s.ReadUint16(&v)
-		out = append(out, v)
+	n := len(s) / 2
+	if n > maxHelloItems {
+		n, h.Truncated = maxHelloItems, true
+	}
+	out := make([]uint16, n)
+	for i := range out {
+		s.ReadUint16(&out[i])
 	}
 	return out, nil
 }

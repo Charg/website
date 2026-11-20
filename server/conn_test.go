@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -21,6 +22,12 @@ import (
 // with a handler that echoes what it saw.
 func startServer(t *testing.T) (addr string, roots *x509.CertPool) {
 	t.Helper()
+	addr, roots, _ = startServerWith(t, 0, "")
+	return addr, roots
+}
+
+func startServerWith(t *testing.T, perIP int, trusted string) (addr string, roots *x509.CertPool, srv *server) {
+	t.Helper()
 	cert, err := selfSigned()
 	if err != nil {
 		t.Fatal(err)
@@ -32,7 +39,7 @@ func startServer(t *testing.T) (addr string, roots *x509.CertPool) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, r.Proto+" "+r.RemoteAddr)
 	})
-	srv, err := newServer(&tls.Config{
+	srv, err = newServer(&tls.Config{
 		MinVersion:   tls.VersionTLS12,
 		NextProtos:   []string{"h2", "http/1.1"},
 		Certificates: []tls.Certificate{*cert},
@@ -40,11 +47,16 @@ func startServer(t *testing.T) (addr string, roots *x509.CertPool) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	srv.perIP = newIPLimiter(perIP)
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	pl := &proxyproto.Listener{Listener: netutil.LimitListener(ln, 16), ReadHeaderTimeout: time.Second}
+	pl, err := newProxyListener(netutil.LimitListener(ln, 16), trusted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pl.ReadHeaderTimeout = time.Second
 	go srv.serve(pl)
 	t.Cleanup(func() {
 		pl.Close()
@@ -52,19 +64,34 @@ func startServer(t *testing.T) (addr string, roots *x509.CertPool) {
 		defer cancel()
 		srv.shutdown(ctx)
 	})
-	return ln.Addr().String(), roots
+	return ln.Addr().String(), roots, srv
 }
 
 var fakeClient = &net.TCPAddr{IP: net.ParseIP("203.0.113.7"), Port: 40000}
 
 func client(addr string, roots *x509.CertPool, protos []string, sendProxy bool) *http.Client {
-	dial := func(ctx context.Context, _, _ string) (net.Conn, error) {
+	var src net.Addr
+	if sendProxy {
+		src = fakeClient
+	}
+	tr := &http.Transport{DialTLSContext: dialFrom(addr, roots, protos, src), ForceAttemptHTTP2: true}
+	if len(protos) == 1 && protos[0] == "http/1.1" {
+		tr.ForceAttemptHTTP2 = false
+		tr.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{}
+	}
+	return &http.Client{Transport: tr, Timeout: 5 * time.Second}
+}
+
+// dialFrom dials addr, sends a PROXY header naming src unless it is nil, and
+// completes the TLS handshake.
+func dialFrom(addr string, roots *x509.CertPool, protos []string, src net.Addr) func(context.Context, string, string) (net.Conn, error) {
+	return func(ctx context.Context, _, _ string) (net.Conn, error) {
 		c, err := (&net.Dialer{}).DialContext(ctx, "tcp", addr)
 		if err != nil {
 			return nil, err
 		}
-		if sendProxy {
-			h := proxyproto.HeaderProxyFromAddrs(2, fakeClient, c.LocalAddr())
+		if src != nil {
+			h := proxyproto.HeaderProxyFromAddrs(2, src, c.LocalAddr())
 			if _, err := h.WriteTo(c); err != nil {
 				c.Close()
 				return nil, err
@@ -77,12 +104,6 @@ func client(addr string, roots *x509.CertPool, protos []string, sendProxy bool) 
 		}
 		return tc, nil
 	}
-	tr := &http.Transport{DialTLSContext: dial, ForceAttemptHTTP2: true}
-	if len(protos) == 1 && protos[0] == "http/1.1" {
-		tr.ForceAttemptHTTP2 = false
-		tr.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{}
-	}
-	return &http.Client{Transport: tr, Timeout: 5 * time.Second}
 }
 
 func get(t *testing.T, c *http.Client) (string, error) {
@@ -173,14 +194,27 @@ func TestConnectionAPI(t *testing.T) {
 
 	for _, protos := range [][]string{{"h2", "http/1.1"}, {"http/1.1"}} {
 		c := client(ln.Addr().String(), roots, protos, true)
-		resp, err := c.Get("https://localhost/api/connection")
-		if err != nil {
+		if _, err := get(t, c); err != nil {
 			t.Fatal(err)
 		}
+		var bodies [2][]byte
+		var resp *http.Response
+		for i := range bodies {
+			resp, err = c.Get("https://localhost/api/connection")
+			if err != nil {
+				t.Fatal(err)
+			}
+			bodies[i], err = io.ReadAll(resp.Body)
+			resp.Body.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		if !bytes.Equal(bodies[0], bodies[1]) {
+			t.Errorf("reports differ on one connection:\n%s\n%s", bodies[0], bodies[1])
+		}
 		var rep report
-		err = json.NewDecoder(resp.Body).Decode(&rep)
-		resp.Body.Close()
-		if err != nil {
+		if err := json.Unmarshal(bodies[0], &rep); err != nil {
 			t.Fatal(err)
 		}
 		if resp.Header.Get("Cache-Control") != "no-store" {
@@ -200,7 +234,7 @@ func TestConnectionAPI(t *testing.T) {
 			if rep.HTTP.Version != "HTTP/2" || rep.HTTP.H2 == nil || !strings.HasSuffix(rep.HTTP.H2.Akamai, "|a,m,p,s") {
 				t.Errorf("h2 = %+v %+v", rep.HTTP, rep.HTTP.H2)
 			}
-		} else if rep.HTTP.Version != "HTTP/1.1" || rep.HTTP.FirstLine != "GET /api/connection HTTP/1.1" {
+		} else if rep.HTTP.Version != "HTTP/1.1" || rep.HTTP.FirstLine != "GET / HTTP/1.1" {
 			t.Errorf("h1 = %+v", rep.HTTP)
 		}
 	}

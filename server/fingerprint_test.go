@@ -288,14 +288,14 @@ func TestParseH2OpeningNoHeaders(t *testing.T) {
 }
 
 func TestParseH1Headers(t *testing.T) {
-	line, h, err := parseH1Headers([]byte("GET / HTTP/1.1\r\nHost: syn.sh\r\nUser-Agent: curl/8\r\nAccept: */*\r\n\r\nbody"))
+	line, h, _, err := parseH1Headers([]byte("GET / HTTP/1.1\r\nHost: syn.sh\r\nUser-Agent: curl/8\r\nAccept: */*\r\n\r\nbody"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if line != "GET / HTTP/1.1" || len(h) != 3 || h[0] != [2]string{"Host", "syn.sh"} || h[1][0] != "User-Agent" {
 		t.Errorf("got %q %v", line, h)
 	}
-	if _, _, err := parseH1Headers([]byte("GET / HTTP/1.1\r\nHost: x")); err == nil {
+	if _, _, _, err := parseH1Headers([]byte("GET / HTTP/1.1\r\nHost: x")); err == nil {
 		t.Error("incomplete request: no error")
 	}
 }

@@ -22,9 +22,11 @@ type server struct {
 	h1        *http.Server
 	h2        *http2.Server
 	h1conns   *connListener
+	perIP     *ipLimiter // nil: no per-client limit
 }
 
 func newServer(tlsConfig *tls.Config, handler http.Handler) (*server, error) {
+	handler = stopRecording(handler)
 	h1 := &http.Server{
 		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
@@ -73,6 +75,14 @@ func (s *server) serve(ln net.Listener) error {
 }
 
 func (s *server) handle(c net.Conn) {
+	// With PROXY protocol, RemoteAddr waits for the header.
+	release, ok := s.perIP.acquire(c.RemoteAddr())
+	if !ok {
+		c.Close()
+		return
+	}
+	c = &limitedConn{Conn: c, release: release}
+
 	raw := &helloRecorder{Conn: c}
 	tc := tls.Server(raw, s.tlsConfig)
 	ctx, cancel := context.WithTimeout(context.Background(), handshakeTimeout)
@@ -86,11 +96,13 @@ func (s *server) handle(c net.Conn) {
 	ci := &connInfo{hello: raw.stop(), state: tc.ConnectionState(), stream: stream}
 
 	if ci.state.NegotiatedProtocol == http2.NextProtoTLS {
+		// No BaseConfig: with it, x/net serves the conn on a copy of h1 that
+		// Shutdown never reaches.
 		s.h2.ServeConn(stream, &http2.ServeConnOpts{
-			Context:    withConnInfo(context.Background(), ci),
-			BaseConfig: s.h1,
-			Handler:    s.handler,
+			Context: withConnInfo(context.Background(), ci),
+			Handler: s.handler,
 		})
+		stream.Close()
 		return
 	}
 	if !s.h1conns.push(&h1Conn{streamRecorder: stream, info: ci}) {

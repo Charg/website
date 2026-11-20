@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 )
 
 type namedID struct {
@@ -49,29 +50,66 @@ type httpReport struct {
 }
 
 type report struct {
-	IP   string     `json:"ip"`
-	TLS  tlsReport  `json:"tls"`
-	HTTP httpReport `json:"http"`
+	IP        string     `json:"ip"`
+	TLS       tlsReport  `json:"tls"`
+	HTTP      httpReport `json:"http"`
+	Truncated bool       `json:"truncated,omitempty"` // some lists or values were cut
 }
 
+const (
+	maxListOut     = 64       // entries shown per list
+	maxReportBytes = 64 << 10 // encoded report size limit
+	maxNameBytes   = 255      // longest server name shown
+)
+
 // serveConnection answers with what this connection revealed: the client's
-// address, its TLS ClientHello and its opening HTTP frames. Nothing is kept.
+// address, its TLS ClientHello and its opening HTTP frames. The report is
+// built once per connection and kept only while it is open.
 func serveConnection(w http.ResponseWriter, r *http.Request) {
 	ci := connInfoFrom(r.Context())
 	if ci == nil {
 		http.Error(w, "connection details unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	rep := buildReport(ci, r.RemoteAddr)
+	b := ci.reportJSON(r.RemoteAddr)
 	h := w.Header()
 	h.Set("Content-Type", "application/json")
 	h.Set("Cache-Control", "no-store")
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	enc.Encode(rep)
+	h.Set("Content-Length", strconv.Itoa(len(b)))
+	w.Write(b)
 }
 
-func buildReport(ci *connInfo, remoteAddr string) report {
+// encodeReport writes rep as indented JSON. A report over maxReportBytes is
+// replaced by its summary.
+func encodeReport(rep report) []byte {
+	b := indentJSON(rep)
+	if len(b) > maxReportBytes {
+		b = indentJSON(rep.summary())
+	}
+	return b
+}
+
+func indentJSON(v any) []byte {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return []byte("{}\n")
+	}
+	return append(b, '\n')
+}
+
+// summary drops everything whose size the client controls, keeping the
+// fixed-size fingerprints.
+func (r report) summary() report {
+	r.Truncated = true
+	r.TLS.JA3, r.TLS.JA4Raw, r.TLS.ClientHello = "", "", nil
+	r.HTTP.FirstLine, r.HTTP.Headers = "", nil
+	if o := r.HTTP.H2; o != nil {
+		r.HTTP.H2 = &h2Opening{WindowUpdate: o.WindowUpdate, Akamai: o.Akamai, AkamaiHash: o.AkamaiHash}
+	}
+	return r
+}
+
+func buildReport(ci *connInfo, remoteAddr string, stream []byte) report {
 	ip, _, err := net.SplitHostPort(remoteAddr)
 	if err != nil {
 		ip = remoteAddr
@@ -85,6 +123,9 @@ func buildReport(ci *connInfo, remoteAddr string) report {
 		ALPN:       st.NegotiatedProtocol,
 		ServerName: st.ServerName,
 	}
+	if len(rep.TLS.ServerName) > maxNameBytes {
+		rep.TLS.ServerName, rep.Truncated = rep.TLS.ServerName[:maxNameBytes], true
+	}
 	if body, err := helloFromRecords(ci.hello); err != nil {
 		rep.TLS.Error = err.Error()
 	} else if h, err := parseClientHello(body); err != nil {
@@ -92,10 +133,11 @@ func buildReport(ci *connInfo, remoteAddr string) report {
 	} else {
 		rep.TLS.JA3, rep.TLS.JA3Hash = ja3(h)
 		rep.TLS.JA4, rep.TLS.JA4Raw = ja4(h)
-		rep.TLS.ClientHello = describeHello(h)
+		var cut bool
+		rep.TLS.ClientHello, cut = describeHello(h)
+		rep.Truncated = rep.Truncated || cut
 	}
 
-	stream := ci.stream.snapshot()
 	if st.NegotiatedProtocol == "h2" {
 		rep.HTTP.Version = "HTTP/2"
 		if o, err := parseH2Opening(stream); err != nil {
@@ -103,20 +145,26 @@ func buildReport(ci *connInfo, remoteAddr string) report {
 		} else {
 			rep.HTTP.H2 = o
 			rep.HTTP.Headers = o.Headers
+			rep.Truncated = rep.Truncated || o.Truncated
 		}
 	} else {
 		rep.HTTP.Version = "HTTP/1.1"
-		if line, headers, err := parseH1Headers(stream); err != nil {
+		if line, headers, cut, err := parseH1Headers(stream); err != nil {
 			rep.HTTP.Error = err.Error()
 		} else {
 			rep.HTTP.FirstLine, rep.HTTP.Headers = line, headers
+			rep.Truncated = rep.Truncated || cut
 		}
 	}
 	return rep
 }
 
-func describeHello(h *clientHello) *helloOut {
+// describeHello names the ClientHello's lists, at most maxListOut entries
+// each. cut reports whether any list was shortened, here or when parsed.
+func describeHello(h *clientHello) (out *helloOut, cut bool) {
+	cut = h.Truncated
 	named := func(vs []uint16, name func(uint16) string) []namedID {
+		vs = clip(vs, &cut)
 		out := make([]namedID, len(vs))
 		for i, v := range vs {
 			n := name(v)
@@ -127,7 +175,7 @@ func describeHello(h *clientHello) *helloOut {
 		}
 		return out
 	}
-	return &helloOut{
+	out = &helloOut{
 		Version:      tls.VersionName(h.Version),
 		CipherSuites: named(h.CipherSuites, tls.CipherSuiteName),
 		Extensions:   named(h.Extensions, extensionName),
@@ -135,11 +183,21 @@ func describeHello(h *clientHello) *helloOut {
 		KeyShares:    named(h.KeyShares, groupName),
 		SigAlgs:      named(h.SigAlgs, func(v uint16) string { return tls.SignatureScheme(v).String() }),
 		Versions:     named(h.Versions, tls.VersionName),
-		ALPN:         h.ALPN,
-		PointFormats: h.PointFormats,
-		PSKModes:     h.PSKModes,
+		ALPN:         clip(h.ALPN, &cut),
+		PointFormats: clip(h.PointFormats, &cut),
+		PSKModes:     clip(h.PSKModes, &cut),
 		CertComp:     named(h.CertCompAlgs, certCompName),
 	}
+	return out, cut
+}
+
+// clip shortens s to maxListOut entries, setting cut if it did.
+func clip[T any](s []T, cut *bool) []T {
+	if len(s) > maxListOut {
+		*cut = true
+		return s[:maxListOut]
+	}
+	return s
 }
 
 func groupName(v uint16) string {

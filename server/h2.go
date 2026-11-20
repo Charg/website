@@ -14,6 +14,9 @@ import (
 
 const h2Preface = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
+// maxHeaderListBytes matches what the server accepts (MaxHeaderBytes).
+const maxHeaderListBytes = 16 << 10
+
 type h2Setting struct {
 	ID    uint16 `json:"id"`
 	Name  string `json:"name"`
@@ -36,6 +39,7 @@ type h2Opening struct {
 	Headers      [][2]string  `json:"-"`
 	Akamai       string       `json:"akamai"`
 	AkamaiHash   string       `json:"akamai_hash"`
+	Truncated    bool         `json:"-"`
 }
 
 var errNoHeaders = errors.New("no HEADERS frame in the recorded bytes")
@@ -50,7 +54,7 @@ func parseH2Opening(b []byte) (*h2Opening, error) {
 	}
 	fr := http2.NewFramer(nil, bytes.NewReader(b[len(h2Preface):]))
 	fr.ReadMetaHeaders = hpack.NewDecoder(4096, nil)
-	fr.MaxHeaderListSize = maxStreamBytes
+	fr.MaxHeaderListSize = maxHeaderListBytes
 
 	o := &h2Opening{}
 	for {
@@ -65,6 +69,10 @@ func parseH2Opening(b []byte) (*h2Opening, error) {
 			}
 			o.Settings = []h2Setting{}
 			f.ForeachSetting(func(s http2.Setting) error {
+				if len(o.Settings) == maxListOut {
+					o.Truncated = true
+					return nil
+				}
 				o.Settings = append(o.Settings, h2Setting{uint16(s.ID), settingName(s.ID), s.Val})
 				return nil
 			})
@@ -73,6 +81,10 @@ func parseH2Opening(b []byte) (*h2Opening, error) {
 				o.WindowUpdate = f.Increment
 			}
 		case *http2.PriorityFrame:
+			if len(o.Priorities) == maxListOut {
+				o.Truncated = true
+				continue
+			}
 			o.Priorities = append(o.Priorities, h2Priority{
 				f.StreamID, f.Exclusive, f.StreamDep, int(f.Weight) + 1,
 			})
@@ -82,7 +94,8 @@ func parseH2Opening(b []byte) (*h2Opening, error) {
 					f.StreamID, f.Priority.Exclusive, f.Priority.StreamDep, int(f.Priority.Weight) + 1,
 				}
 			}
-			for _, hf := range f.Fields {
+			o.Truncated = o.Truncated || f.Truncated || len(f.Fields) > maxListOut
+			for _, hf := range f.Fields[:min(len(f.Fields), maxListOut)] {
 				o.Headers = append(o.Headers, [2]string{hf.Name, hf.Value})
 			}
 			o.Akamai = o.akamai()
