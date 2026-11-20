@@ -14,8 +14,7 @@ concurrency:
   group: publish-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   image:

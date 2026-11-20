@@ -25,11 +25,18 @@ My personal site [syn.sh](https://syn.sh).
 cd server
 go generate                   # blog, CSP, and server/site/
 go test ./...
-go tool govulncheck ./...
 go run . -self-signed -proxy-protocol=false -addr 127.0.0.1:8443
 ```
 
 Then open <https://localhost:8443> and accept the certificate warning.
+
+Lint, format, and security checks run with [prek](https://github.com/j178/prek),
+locally and in CI:
+
+```sh
+prek install           # run on every commit
+prek run --all-files
+```
 
 ## Image
 

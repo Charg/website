@@ -10,6 +10,9 @@
   minimumReleaseAge: '7 days',
   internalChecksFilter: 'strict',
   prCreation: 'not-pending',
+  // CI runs only on PRs and main, so a Renovate branch has no checks before its PR exists.
+  // Count passing minimumReleaseAge as green so PRs open without waiting prNotPendingHours.
+  internalChecksAsSuccess: true,
   automergeType: 'pr',
   automergeStrategy: 'squash',
   platformAutomerge: false,
@@ -22,10 +25,17 @@
   postUpdateOptions: [
     'gomodTidy',
   ],
+  // Lets Renovate regenerate .github/workflows/actions.lock when bumping actions.
+  constraints: {
+    ghActionsLock: 'v0.4.1',
+  },
   lockFileMaintenance: {
     enabled: true,
   },
   nix: {
+    enabled: true,
+  },
+  'pre-commit': {
     enabled: true,
   },
   packageRules: [

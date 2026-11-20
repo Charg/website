@@ -1,5 +1,9 @@
 package main
 
+// http2.Server.ServeConn has no net/http equivalent for a conn we have already
+// terminated TLS on, so the deprecated x/net server stays for now.
+//lint:file-ignore SA1019 x/net/http2 server needed for ServeConn
+
 import (
 	"context"
 	"crypto/tls"
