@@ -31,7 +31,7 @@ func testSrc() fstest.MapFS {
 		"tools/x.html":             f(page(`<script src="/assets/x.js"></script><script>alert(1)</script><script>el.style = "a"; s = '<b style="x">'</script><p>style="not an attribute"</p>`)),
 		"assets/site.css":          f("body{}"),
 		".well-known/security.txt": f("Contact: x"),
-		"posts/old.md":             f("---\ntitle: Old [one]\ndate: 2026-01-01\n---\n\n![shot](old/shot.png)\n\n| a | b |\n|:-:|--:|\n| c | d |\n\n<style>.m{}</style>\n"),
+		"posts/old.md":             f("---\ntitle: Old [one]\ndate: 2026-01-01\n---\n\n![shot](old/shot.png)\n\n| a | b |\n|:-:|--:|\n| c | d |\n\n~~gone~~ see https://example.com\n\n- [x] done\n- [ ] todo\n\n<style>.m{}</style>\n"),
 		"posts/old/shot.png":       f("png"),
 		"posts/new.md":             f("---\r\ntitle: A & <b>\r\ndate: 2026-02-01\r\n---\r\n\nHi <span>raw</span>\n"),
 		"posts/wip.md":             f("---\ntitle: WIP\ndate: 2026-03-01\ndraft: true\n---\n\nsoon\n"),
@@ -88,7 +88,9 @@ func TestBuild(t *testing.T) {
 	contains("blog/index.html", `        <li><a href="/blog/new.html">`, `<a href="/blog/" aria-current="page">blog`)
 	contains("blog/new.html", "<title>A &amp; &lt;b&gt;</title>", "<time>2026-02-01</time>", "<span>raw</span>",
 		`<a href="/blog/" aria-current="true">blog`)
-	contains("blog/old.html", `<img src="old/shot.png" alt="shot" loading="lazy">`, `<th align="center">a</th>`, `<td align="right">d</td>`)
+	contains("blog/old.html", `<img src="old/shot.png" alt="shot" loading="lazy">`, `<th align="center">a</th>`, `<td align="right">d</td>`,
+		`<del>gone</del>`, `<a href="https://example.com">https://example.com</a>`,
+		`<li><input checked="" disabled="" type="checkbox"> done</li>`, `<li><input disabled="" type="checkbox"> todo</li>`)
 	contains("blog/old/shot.png", "png")
 	contains("tools/x.html", `<a href="/blog/">blog`, `<a href="/">home`)
 	contains("tools/index.html", "tools")

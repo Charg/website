@@ -13,13 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/ast"
-	"github.com/yuin/goldmark/extension"
-	"github.com/yuin/goldmark/parser"
-	gmhtml "github.com/yuin/goldmark/renderer/html"
-	"github.com/yuin/goldmark/text"
-	"github.com/yuin/goldmark/util"
+	"github.com/yuin/goldmark/v2/ast"
+	"github.com/yuin/goldmark/v2/extension"
+	"github.com/yuin/goldmark/v2/parser"
+	gmhtml "github.com/yuin/goldmark/v2/renderer/html"
+	"github.com/yuin/goldmark/v2/text"
+	"github.com/yuin/goldmark/v2/util"
 	xhtml "golang.org/x/net/html"
 )
 
@@ -190,24 +189,34 @@ func parsePost(slug, raw string) (post, error) {
 	if slug == "index" {
 		return post{}, fmt.Errorf("clashes with the blog index page")
 	}
+	src := []byte(m[2])
 	var b strings.Builder
-	if err := markdown.Convert([]byte(m[2]), &b); err != nil {
+	if err := mdRenderer.Render(&b, src, mdParser.Parse(src)); err != nil {
 		return post{}, err
 	}
 	p.html = b.String()
 	return p, nil
 }
 
-var markdown = goldmark.New(
-	// GFM, with table alignment as align attributes: the CSP blocks style attributes.
-	goldmark.WithExtensions(
-		extension.Linkify,
-		extension.NewTable(extension.WithTableCellAlignMethod(extension.TableCellAlignAttribute)),
-		extension.Strikethrough,
-		extension.TaskList,
-	),
-	goldmark.WithParserOptions(parser.WithASTTransformers(util.Prioritized(lazyImages{}, 100))),
-	goldmark.WithRendererOptions(gmhtml.WithUnsafe()),
+// GFM, with table alignment as align attributes: the CSP blocks style attributes.
+var (
+	mdParser = parser.New(
+		parser.WithExtensions(
+			extension.NewLinkifyParser(),
+			extension.NewTableParser(),
+			extension.NewStrikethroughParser(),
+			extension.NewTaskListItemParser(),
+		),
+		parser.WithASTTransformers(util.Prioritized[parser.ASTTransformer](lazyImages{}, 100)),
+	)
+	mdRenderer = gmhtml.New(
+		gmhtml.WithExtensions(
+			extension.NewTableHTMLRenderer(extension.WithTableCellAlignMethod(extension.TableCellAlignAttribute)),
+			extension.NewStrikethroughHTMLRenderer(),
+			extension.NewTaskListItemHTMLRenderer(),
+		),
+		gmhtml.WithUnsafe(),
+	)
 )
 
 // lazyImages lazy-loads images so long posts don't fetch every screenshot up front.
@@ -216,7 +225,7 @@ type lazyImages struct{}
 func (lazyImages) Transform(doc *ast.Document, _ text.Reader, _ parser.Context) {
 	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if img, ok := n.(*ast.Image); ok && entering {
-			img.SetAttributeString("loading", []byte("lazy"))
+			img.SetAttribute("loading", text.NewMultiLineValue("lazy", text.IdentityDecoder))
 		}
 		return ast.WalkContinue, nil
 	})
