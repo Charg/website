@@ -20,6 +20,7 @@ import (
 	gmhtml "github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
+	xhtml "golang.org/x/net/html"
 )
 
 // static is copied to the output as-is, apart from the pages in tools/.
@@ -91,12 +92,13 @@ func build(src fs.FS, out string, now time.Time) (result, error) {
 		if err != nil {
 			return result{}, err
 		}
-		if attr := styleAttr(page); attr != "" {
+		pageScripts, pageStyles, attr := inline(page)
+		if attr != "" {
 			return result{}, fmt.Errorf("%s: style attribute is blocked by the CSP: %s", name, attr)
 		}
 		pages[name] = page
-		scripts = addNew(scripts, scriptHashes(page))
-		styles = addNew(styles, styleHashes(page))
+		scripts = addNew(scripts, pageScripts)
+		styles = addNew(styles, pageStyles)
 	}
 
 	texts := map[string]string{".csp": csp(scripts, styles)}
@@ -293,40 +295,51 @@ func include(name, page, header, footer string) (string, error) {
 	return strings.Replace(page, footerMarker, footer, 1), nil
 }
 
-var (
-	scriptTag = regexp.MustCompile(`(?s)<script([^>]*)>(.*?)</script>`)
-	styleTag  = regexp.MustCompile(`(?is)<style([^>]*)>(.*?)</style>`)
-	srcAttr   = regexp.MustCompile(`\bsrc=`)
-	// A start tag with a style attribute; script and style bodies are removed first.
-	styleAttrTag = regexp.MustCompile(`(?i)<[a-z][^>]*\sstyle\s*=[^>]*>`)
-)
-
-// scriptHashes returns CSP sources for the page's inline scripts.
-func scriptHashes(page string) []string {
-	var hashes []string
-	for _, m := range scriptTag.FindAllStringSubmatch(page, -1) {
-		if !srcAttr.MatchString(m[1]) {
-			hashes = append(hashes, hash(m[2]))
+// inline returns CSP sources for the page's inline scripts and <style>
+// blocks, and the first tag with a style attribute, which hashes can't allow.
+func inline(page string) (scripts, styles []string, styleAttr string) {
+	z := xhtml.NewTokenizer(strings.NewReader(page))
+	for {
+		switch z.Next() {
+		case xhtml.ErrorToken:
+			return scripts, styles, styleAttr
+		case xhtml.StartTagToken, xhtml.SelfClosingTagToken:
+		default:
+			continue
+		}
+		raw := string(z.Raw())
+		tag, more := z.TagName()
+		name, external := string(tag), false
+		for more {
+			var key []byte
+			key, _, more = z.TagAttr()
+			switch string(key) {
+			case "style":
+				if styleAttr == "" {
+					styleAttr = raw
+				}
+			case "src":
+				external = true
+			}
+		}
+		if name != "script" && name != "style" {
+			continue
+		}
+		// The tokenizer returns the element's body as one text token.
+		if z.Next() != xhtml.TextToken {
+			continue
+		}
+		switch body := newlines.Replace(string(z.Raw())); {
+		case name == "style":
+			styles = append(styles, hash(body))
+		case !external:
+			scripts = append(scripts, hash(body))
 		}
 	}
-	return hashes
 }
 
-// styleHashes returns CSP sources for the page's <style> blocks.
-func styleHashes(page string) []string {
-	var hashes []string
-	for _, m := range styleTag.FindAllStringSubmatch(page, -1) {
-		hashes = append(hashes, hash(m[2]))
-	}
-	return hashes
-}
-
-// styleAttr returns the first tag with a style attribute, which hashes can't allow.
-func styleAttr(page string) string {
-	page = scriptTag.ReplaceAllString(page, "")
-	page = styleTag.ReplaceAllString(page, "")
-	return styleAttrTag.FindString(page)
-}
+// Browsers hash the body after normalising newlines.
+var newlines = strings.NewReplacer("\r\n", "\n", "\r", "\n")
 
 func hash(s string) string {
 	sum := sha256.Sum256([]byte(s))

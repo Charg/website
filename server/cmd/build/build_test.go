@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -153,15 +154,18 @@ func TestBuildNoPosts(t *testing.T) {
 
 func TestBuildErrors(t *testing.T) {
 	for name, tc := range map[string]struct{ file, data, want string }{
-		"no front matter": {"posts/a.md", "# hi\n", "posts/a.md: missing front matter"},
-		"no title":        {"posts/a.md", "---\ndate: 2026-01-01\n---\nx", "posts/a.md: missing title"},
-		"bad date":        {"posts/a.md", "---\ntitle: A\ndate: 1/2/2026\n---\nx", "posts/a.md: date must be YYYY-MM-DD"},
-		"index slug":      {"posts/index.md", "---\ntitle: A\ndate: 2026-01-01\n---\nx", "posts/index.md: clashes"},
-		"no header":       {"tools/y.html", "<p>" + footerMarker, "tools/y.html: missing " + headerMarker},
-		"no posts slot":   {"index.html", page(""), "index.html: missing {{posts}}"},
-		"style attr":      {"tools/y.html", page(`<p class="a" STYLE = "color: red">`), `tools/y.html: style attribute is blocked by the CSP: <p class="a" STYLE = "color: red">`},
-		"style attr post": {"posts/a.md", "---\ntitle: A\ndate: 2026-01-01\n---\n<span style=\"x\">hi</span>", "blog/a.html: style attribute"},
-		"style attr tmpl": {"templates/footer.html", `<footer style="x">`, "index.html: style attribute"},
+		"no front matter":     {"posts/a.md", "# hi\n", "posts/a.md: missing front matter"},
+		"no title":            {"posts/a.md", "---\ndate: 2026-01-01\n---\nx", "posts/a.md: missing title"},
+		"bad date":            {"posts/a.md", "---\ntitle: A\ndate: 1/2/2026\n---\nx", "posts/a.md: date must be YYYY-MM-DD"},
+		"index slug":          {"posts/index.md", "---\ntitle: A\ndate: 2026-01-01\n---\nx", "posts/index.md: clashes"},
+		"no header":           {"tools/y.html", "<p>" + footerMarker, "tools/y.html: missing " + headerMarker},
+		"no posts slot":       {"index.html", page(""), "index.html: missing {{posts}}"},
+		"style attr":          {"tools/y.html", page(`<p class="a" STYLE = "color: red">`), `tools/y.html: style attribute is blocked by the CSP: <p class="a" STYLE = "color: red">`},
+		"style attr post":     {"posts/a.md", "---\ntitle: A\ndate: 2026-01-01\n---\n<span style=\"x\">hi</span>", "blog/a.html: style attribute"},
+		"style attr tmpl":     {"templates/footer.html", `<footer style="x">`, "index.html: style attribute"},
+		"style attr after >":  {"tools/y.html", page(`<a title="a>b" style="x">`), "tools/y.html: style attribute"},
+		"style attr no space": {"tools/y.html", page(`<p class="a"style="x">`), "tools/y.html: style attribute"},
+		"style attr slash":    {"tools/y.html", page(`<p/style="x">`), "tools/y.html: style attribute"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			src := testSrc()
@@ -169,6 +173,39 @@ func TestBuildErrors(t *testing.T) {
 			_, err := build(src, t.TempDir(), time.Now())
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Errorf("err = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestInlineHashes(t *testing.T) {
+	for name, tc := range map[string]struct {
+		page            string
+		scripts, styles []string
+	}{
+		"style tag in a script": {"<script>s='<style>'</script><style>a{}</style>", []string{"s='<style>'"}, []string{"a{}"}},
+		"space in end tag":      {"<style>a{}</style ><p>x</p><style>b{}</style>", nil, []string{"a{}", "b{}"}},
+		"external script":       {`<script src="/a.js"></script><script>x()</script>`, []string{"x()"}, nil},
+		"newlines normalised":   {"<style>a{}\r\nb{}</style>", nil, []string{"a{}\nb{}"}},
+		"upper case":            {"<STYLE media=print>a{}</STYLE>", nil, []string{"a{}"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			scripts, styles, attr := inline(tc.page)
+			if attr != "" {
+				t.Errorf("style attribute %q", attr)
+			}
+			want := func(bodies []string) []string {
+				var out []string
+				for _, b := range bodies {
+					out = append(out, hash(b))
+				}
+				return out
+			}
+			if !slices.Equal(scripts, want(tc.scripts)) {
+				t.Errorf("scripts = %v, want hashes of %q", scripts, tc.scripts)
+			}
+			if !slices.Equal(styles, want(tc.styles)) {
+				t.Errorf("styles = %v, want hashes of %q", styles, tc.styles)
 			}
 		})
 	}
