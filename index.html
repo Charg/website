@@ -9,17 +9,8 @@
   <script src="/assets/theme.js"></script>
   <script src="/assets/myspace.js" defer></script>
   <style>
-    /* The header bar already shows the name, so the heading is for screen
-       readers only, until the easter egg brings it back. */
-    .title {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip-path: inset(50%);
-      white-space: nowrap;
-    }
-
+    /* The header bar already shows the name, so the heading is .sr-only
+       until the easter egg brings it back. */
     :root.myspace .title {
       position: static;
       width: auto;
@@ -117,7 +108,7 @@
     <!-- include:header -->
 
     <header class="intro">
-      <h1 class="title">Chris Argeros</h1>
+      <h1 class="title sr-only">Chris Argeros</h1>
       <p>Welcome 👋</p>
       <p class="ms status"><span class="online">Online Now!</span> · Mood: nostalgic 😎</p>
     </header>

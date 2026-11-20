@@ -8,7 +8,8 @@ My personal site [syn.sh](https://syn.sh).
   except that the build fills in the `<!-- include:header -->` and
   `<!-- include:footer -->` markers from `templates/`, the build date into
   `humans.txt`, and the post list into `llms.txt`.
-- `assets/`: `site.css` and `theme.js`, shared by every page.
+- `assets/`: `site.css`, `theme.js`, and `myspace.js`, shared by every page, and
+  `trippy.js`, which `theme.js` loads only when the trippy theme is picked.
 - `posts/*.md`: blog posts, built into `blog/` along with the `blog/index.html`
   list from `templates/blog.html`. The build also fills in the post list in
   `index.html` (`{{posts}}`) and the Content-Security-Policy.
