@@ -21,13 +21,17 @@
       padding-bottom: 0.5rem;
     }
 
-    h2 {
-      margin: 2.5em 0 0.75em;
-      font-size: 1em;
-      font-weight: 700;
-    }
+    .hi { margin: 0; color: var(--muted); }
 
-    h2::before { content: "## "; color: var(--muted); }
+    main { display: grid; gap: clamp(2.5rem, 7vh, 3.5rem); margin-top: clamp(2.5rem, 7vh, 3.5rem); }
+
+    h2 {
+      margin: 0 0 1em;
+      color: var(--muted);
+      font-size: 0.9em;
+      font-weight: 400;
+      letter-spacing: 0.04em;
+    }
 
     /* ~*~ Easter egg extras for the home page; the rest is in site.css ~*~ */
 
@@ -50,6 +54,8 @@
       :root.myspace .counter { grid-area: counter; }
       :root.myspace .site-footer { grid-area: footer; }
 
+      :root.myspace main { display: block; margin-top: 0; }
+      :root.myspace main section + section { margin-top: 1.5em; }
       :root.myspace main .network { margin-top: 0; }
       :root.myspace main section:first-of-type h2 { margin-top: 1.5em; }
     }
@@ -109,7 +115,7 @@
 
     <header class="intro">
       <h1 class="title sr-only">Chris Argeros</h1>
-      <p>Welcome 👋</p>
+      <p class="hi">Welcome 👋</p>
       <p class="ms status"><span class="online">Online Now!</span> · Mood: nostalgic 😎</p>
     </header>
 
@@ -117,24 +123,16 @@
       <p class="ms network">Chris is in your extended network.</p>
 
       <section id="blog">
-        <h2>Blog</h2>
+        <h2>blog</h2>
         <ul class="list">
 {{posts}}
         </ul>
       </section>
 
       <section id="tools">
-        <h2>Tools</h2>
+        <h2>tools</h2>
         <ul class="list">
           <li><a href="/tools/fingerprint.html">Browser fingerprint</a> <span class="note">what sites can learn about you</span></li>
-        </ul>
-      </section>
-
-      <section id="links">
-        <h2>Links</h2>
-        <ul class="list">
-          <li><a href="https://github.com/charg">GitHub</a></li>
-          <li><a href="mailto:chris@syn.sh">Email</a></li>
         </ul>
       </section>
     </main>

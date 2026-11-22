@@ -9,7 +9,7 @@
   <script src="/assets/theme.js"></script>
   <script src="/assets/myspace.js" defer></script>
   <style>
-    :root { --code-bg: #ecebe5; }
+    :root { --code-bg: #f0f0ed; }
 
     @media (prefers-color-scheme: dark) {
       :root:not([data-theme="light"]) { --code-bg: #1a1a1a; }
@@ -25,24 +25,27 @@
 
     time { color: var(--muted); }
 
-    h2, h3 { margin: 2em 0 0.5em; font-size: 1em; }
-    h2::before { content: "## "; color: var(--muted); }
-    h3::before { content: "### "; color: var(--muted); }
+    h2, h3 { margin: 2.25em 0 0.6em; font-size: 1.2em; font-weight: 700; line-height: 1.35; }
+    h3 { font-size: 1em; color: var(--muted); }
+
+    article :is(ul, ol) { padding-left: 1.5em; }
+    article li::marker { color: var(--muted); }
+    article li + li { margin-top: 0.25em; }
 
     img { max-width: 100%; height: auto; }
 
     code { background: var(--code-bg); padding: 0.1em 0.3em; }
-    pre { background: var(--code-bg); padding: 1rem; overflow-x: auto; }
+    pre { background: var(--code-bg); padding: 1rem 1.25rem; overflow-x: auto; font-size: 0.9em; line-height: 1.6; }
     pre code { padding: 0; }
 
     blockquote {
-      margin: 1.5em 0;
-      padding-left: 1em;
-      border-left: 2px dashed var(--muted);
+      margin: 2em 0;
+      padding-left: 1.25em;
+      border-left: 1px solid var(--rule);
       color: var(--muted);
     }
 
-    hr { border: none; border-top: 2px dashed var(--muted); margin: 2.5em 0; }
+    hr { border: none; border-top: 1px solid var(--rule); margin: 3em 0; }
   </style>
 </head>
 <body>
