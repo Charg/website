@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Browser fingerprint · Chris Argeros</title>
-  <meta name="description" content="See the signals websites use to fingerprint your browser, how each one works, and how to defend against them. The probes run locally, and the results never leave your browser.">
+  <meta name="description" content="See the signals websites use to fingerprint your browser, how each one works, and how to defend against them.">
   <link rel="author" href="/humans.txt">
   <link rel="stylesheet" href="/assets/site.css">
   <script src="/assets/theme.js"></script>
@@ -16,6 +16,7 @@
       --high: #b3261e;
       --medium: #a15c00;
       --low: #2e7d32;
+      --core: #0a66ff;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -24,6 +25,7 @@
         --high: #ff8a80;
         --medium: #ffcc80;
         --low: #a5d6a7;
+        --core: #5cb8ff;
       }
     }
 
@@ -32,18 +34,14 @@
       --high: #ff8a80;
       --medium: #ffcc80;
       --low: #a5d6a7;
+      --core: #5cb8ff;
     }
 
-    /* A little wider than the blog: the results have long values. */
-    .wrap { max-width: 72ch; }
+    /* A little wider than the blog: some values are long. */
+    .wrap { max-width: 68ch; }
 
-    .intro {
-      padding-bottom: 0.5rem;
-      border-bottom: 1px solid var(--rule);
-    }
-
-    h2, h3 { margin: 2.5em 0 0.75em; font-size: 1em; font-weight: 700; }
-    h3 { color: var(--muted); }
+    h2 { margin: 3em 0 0.5em; font-size: 1em; font-weight: 700; }
+    .lede { margin-top: 0; color: var(--muted); }
 
     code { background: var(--code-bg); padding: 0.1em 0.3em; }
     pre { background: var(--code-bg); padding: 1rem; overflow-x: auto; font-size: 0.8em; line-height: 1.5; }
@@ -52,29 +50,117 @@
     ul { padding-left: 1.25em; }
 
     .muted { color: var(--muted); }
+    .small { font-size: 0.85em; }
 
-    /* The big summary box at the top. */
-    .summary {
-      margin: 2rem 0;
-      padding: 1rem 1.25rem;
+    /* ---- The fingerprint itself ---------------------------------------- */
+
+    .hero {
+      margin: 2.5rem 0 1rem;
+      padding: 1.5rem 1.25rem 1.25rem;
       border: 1px solid var(--rule);
     }
-    .summary p { margin: 0.25em 0; }
-    .summary .core-label { margin-top: 1em; }
+    .hero p { margin: 0; }
+    .hero-label {
+      color: var(--muted);
+      font-size: 0.8em;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
     .id {
-      font-size: clamp(1.25rem, 1rem + 1.5vw, 2rem);
+      margin: 0.35em 0 !important;
+      font-size: clamp(1.5rem, 1.1rem + 2.2vw, 2.6rem);
       font-weight: 700;
       letter-spacing: 0.05em;
+      line-height: 1.2;
       word-break: break-all;
     }
+    .hero-meta { font-size: 0.85em; }
+
+    /* "What's it made of?": a button-like toggle under the ID. */
+    .breakdown > summary {
+      display: inline-block;
+      margin: 0.25em 0 0.5em;
+      padding: 0.35em 1em;
+      border: 1px solid var(--rule);
+      color: var(--text);
+      list-style: none;
+      cursor: pointer;
+    }
+    .breakdown > summary::-webkit-details-marker { display: none; }
+    .breakdown > summary:hover { border-color: var(--text); }
+    .breakdown > summary::after { content: " ↓"; color: var(--muted); }
+    .breakdown[open] > summary::after { content: " ↑"; }
+    .breakdown .when-open, .breakdown[open] .when-closed { display: none; }
+    .breakdown[open] .when-open { display: inline; }
+
+    .group {
+      margin: 1.75em 0 0.25em;
+      color: var(--muted);
+      font-size: 0.75em;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* ---- Expandable rows: signals, techniques, and the extras ----------- */
+
+    .rows { border-top: 1px solid var(--rule); }
+    details.row { margin: 0; border-bottom: 1px solid var(--rule); }
+    details.row > summary {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: baseline;
+      gap: 1em;
+      padding: 0.55em 0;
+      color: var(--text);
+      list-style: none;
+      cursor: pointer;
+    }
+    details.row > summary::-webkit-details-marker { display: none; }
+    details.row > summary::after { content: "+"; color: var(--muted); width: 1ch; }
+    details.row[open] > summary::after { content: "−"; }
+    @media (hover: hover) {
+      details.row > summary:hover .row-name { text-decoration: underline 1px var(--muted); text-underline-offset: 0.2em; }
+    }
+    .row-body { padding: 0 0 1em; }
+    .row-body > :first-child { margin-top: 0; }
+
+    /* A signal row: its name, then its value cut to one line. */
+    details.signal > summary { grid-template-columns: minmax(0, 15ch) minmax(0, 1fr) auto; }
+    .row-val {
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 0.85em;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .row-val.na { font-style: italic; }
+    .signal .full {
+      margin: 0 0 0.75em;
+      padding: 0.5em 0.75em;
+      background: var(--code-bg);
+      font-size: 0.85em;
+      word-break: break-word;
+    }
+    .signal .row-body p { margin: 0.5em 0; }
+
+    @media (max-width: 34rem) {
+      details.signal > summary {
+        grid-template-columns: minmax(0, 1fr) auto;
+        row-gap: 0;
+      }
+      details.signal > summary .row-val { grid-row: 2; }
+    }
+
+    /* How identifying a technique is. */
+    .lvl { font-size: 0.75em; letter-spacing: 0.04em; }
+    .high { color: var(--high); }
+    .medium { color: var(--medium); }
+    .low { color: var(--low); }
 
     .tag { font-size: 0.85em; color: var(--muted); }
     .tag b { font-weight: 700; }
-    .tag .high { color: var(--high); }
-    .tag .medium { color: var(--medium); }
-    .tag .low { color: var(--low); }
 
-    /* Results: label on the left, value on the right; stacked on phones. */
+    /* A technique's raw results: label on the left, value on the right. */
     dl.out {
       display: grid;
       grid-template-columns: minmax(0, 14ch) minmax(0, 1fr);
@@ -90,7 +176,14 @@
     dl.out dd.na { color: var(--muted); font-style: italic; }
     dl.out dd.warn { color: var(--high); }
     dl.out .vol::after { content: " ~"; color: var(--muted); }
-    dl.out .core::after { content: " ●"; color: var(--muted); font-size: 0.8em; }
+    dl.out dt.core { color: var(--core); }
+    dl.out .core::after { content: " ●"; color: var(--core); font-size: 0.8em; }
+    .core-dot { color: var(--core); }
+
+    @media (max-width: 34rem) {
+      dl.out { grid-template-columns: minmax(0, 1fr); }
+      dl.out dd { margin-bottom: 0.5em; }
+    }
 
     textarea {
       display: block;
@@ -121,11 +214,6 @@
     table.diff th { color: var(--muted); font-weight: 400; }
     .diff-wrap { overflow-x: auto; }
 
-    @media (max-width: 34rem) {
-      dl.out { grid-template-columns: minmax(0, 1fr); }
-      dl.out dd { margin-bottom: 0.5em; }
-    }
-
     figure { margin: 1em 0; }
     figure canvas {
       display: block;
@@ -135,9 +223,10 @@
     }
     figcaption { font-size: 0.8em; color: var(--muted); }
 
-    details { margin: 0.75em 0; }
-    summary { cursor: pointer; color: var(--muted); }
-    summary:hover { color: var(--text); }
+    /* Nested "How it works" toggles inside a row. */
+    .row-body details { margin: 0.75em 0; }
+    .row-body summary { cursor: pointer; color: var(--muted); }
+    .row-body summary:hover { color: var(--text); }
 
     button {
       font: inherit;
@@ -149,104 +238,15 @@
     }
     button:hover { border-color: var(--text); }
 
-    hr { border: none; border-top: 1px solid var(--rule); margin: 3em 0; }
-
-    /* ---- Layout ----------------------------------------------------------
-       Phones and small windows: one column, contents in a collapsible box.
-       60rem and up: article + sticky contents on the right.
-       90rem and up: also a sticky fingerprint panel on the left.
-       Keep these breakpoints in sync with MID and WIDE in the script. */
-
-    .panel, .toc-col { display: none; }
-
-    .toc {
-      margin: 2em 0;
-      padding: 0.5em 1em;
-      border: 1px solid var(--rule);
-      font-size: 0.85em;
-    }
-    .toc[open] summary { margin-bottom: 0.5em; }
-    .toc nav { line-height: 1.5; }
-    .toc ol { list-style: none; margin: 0 0 0.75em; padding: 0; }
-    .toc-group {
-      margin: 0.75em 0 0.25em;
-      color: var(--muted);
-      font-size: 0.85em;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-    .toc a,
-    .toc a:visited {
-      display: block;
-      padding: 0.1em 0 0.1em 0.75em;
-      border-left: 2px solid transparent;
-      color: var(--muted);
-      text-decoration: none;
-    }
-    .toc a.active { color: var(--text); border-left-color: var(--text); }
-    @media (hover: hover) {
-      .toc a:hover { background: none; color: var(--link); }
-    }
-
-    @media (min-width: 60rem) {
-      .layout {
-        display: grid;
-        grid-template-columns: minmax(0, 72ch) minmax(11rem, 16rem);
-        justify-content: center;
-        column-gap: 2.5rem;
-      }
-      .wrap { margin: 0; max-width: none; }
-
-      .toc-col { display: block; }
-      .toc {
-        position: sticky;
-        top: 0;
-        max-height: 100vh;
-        overflow-y: auto;
-        margin: 0;
-        padding: clamp(2.5rem, 10vh, 7rem) 1rem 2rem 0;
-        border: none;
-        font-size: 0.8em;
-      }
-      /* Always open here; the summary is just a label. */
-      .toc summary {
-        pointer-events: none;
-        list-style: none;
-        color: var(--muted);
-      }
-      .toc summary::-webkit-details-marker { display: none; }
-
-      /* Generative: the side columns float over the background, so they're .glass like the reading column. */
-      :root[data-theme="generative"]:not(.myspace) :is(.toc, .panel) {
-        top: 1rem;
-        max-height: calc(100vh - 2rem);
-        padding: 1.25rem;
-        border-radius: 1rem;
-        box-shadow: 0 0 0 2px var(--link);
-      }
-    }
-
-    @media (min-width: 90rem) {
-      .layout {
-        grid-template-columns: minmax(22rem, 28rem) minmax(0, 72ch) minmax(11rem, 16rem);
-      }
-
-      .panel {
-        display: block;
-        position: sticky;
-        top: 0;
-        align-self: start;
-        max-height: 100vh;
-        overflow-y: auto;
-        padding: clamp(2.5rem, 10vh, 7rem) 1.5rem 2rem;
-        border-right: 1px solid var(--rule);
-        font-size: 0.85em;
-      }
-      .panel .summary { margin-top: 0; }
-      .panel .id { font-size: 1.5rem; }
-      .panel h2 { margin-top: 2em; }
-      .panel pre { max-height: 40vh; }
-      .panel textarea { min-height: 6em; }
+    /* Raw JSON: a copy button pinned to the code block's top-right corner. */
+    .code-box { position: relative; }
+    .code-box pre { margin: 0; }
+    .copy-btn {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      font-size: 0.75em;
+      background: var(--code-bg);
     }
 
     /* Bait element for the ad-blocker probe. It must be visible to the page. */
@@ -254,104 +254,85 @@
   </style>
 </head>
 <body>
-  <!-- Three columns on wide screens: fingerprint panel | article | contents.
-       The script at the bottom moves the summary, raw data and compare tool
-       into the panel, and the contents into the right column, as space allows.
-       Without room (or without JavaScript) everything stays in the article. -->
-  <div class="layout">
-  <aside class="panel glass" id="panel" aria-label="Your fingerprint"></aside>
-
   <div class="wrap">
     <!-- include:header -->
 
-    <header class="intro">
-      <h1>Browser fingerprint</h1>
-      <span class="muted">a tool · how websites recognise you without cookies</span>
-    </header>
+    <h1>Browser fingerprint</h1>
+    <p class="lede">how websites recognise you without cookies</p>
 
-    <p>Clear your cookies, open a private window, change your IP: many websites can still recognise you. They do it by asking your browser dozens of small questions. How big is your screen? Which fonts do you have? How does your graphics card draw this shape? Each answer is shared by lots of people. Put enough of them together, though, and the combination is often unique to you. That combination is a <strong>fingerprint</strong>.</p>
-
-    <p>This page runs the techniques that real fingerprinting scripts use, shows you what each one learns about your browser, and explains how it works. <strong>The probes run locally in your browser, and the results are never sent anywhere.</strong> The one exception is <a href="#connection">Your connection</a>: the server reads how your browser connected and sends that back to you, without keeping it. This site has no analytics.</p>
+    <p>Clear your cookies, open a private window, change your IP: many websites can still recognise you. They ask your browser dozens of small questions. Each answer is common, but together they're often unique to you. That combination is a <strong>fingerprint</strong>, and this is yours:</p>
 
     <noscript>
-      <p><strong>JavaScript is off,</strong> so none of the probes below can run. That alone cuts down what a site can learn about you, but not to zero: your IP address, HTTP headers and TLS handshake still reach the server, and CSS media queries can still load different files for different devices. You can see what your connection gave away at <a href="/api/connection">/api/connection</a>.</p>
+      <p><strong>JavaScript is off,</strong> so none of the probes can run. That alone cuts down what a site can learn about you, but not to zero: your IP address, HTTP headers and TLS handshake still reach the server, and CSS media queries can still load different files for different devices. You can see what your connection gave away at <a href="/api/connection">/api/connection</a>.</p>
     </noscript>
 
-    <div id="slot-summary">
-    <div class="summary" id="summary" aria-live="polite">
-      <p class="muted">Exact fingerprint (every stable signal):</p>
-      <p class="id" id="fp-id">computing…</p>
-      <p class="muted" id="fp-meta">&nbsp;</p>
-      <p class="muted core-label">Core fingerprint (only signals that are hard to change):</p>
+    <div class="hero" id="summary" aria-live="polite">
+      <p class="hero-label">Your fingerprint</p>
       <p class="id" id="fp-core">computing…</p>
-      <p class="muted" id="fp-core-meta">&nbsp;</p>
+      <p class="muted hero-meta" id="fp-core-meta">&nbsp;</p>
     </div>
-    </div>
 
-    <p><strong>Try this:</strong> open this page in a private window, or after clearing your cookies, and compare the two IDs.</p>
-    <ul>
-      <li><strong>The exact ID stays the same:</strong> a tracker can link those visits trivially.</li>
-      <li><strong>The exact ID changes:</strong> your browser is altering some answers. Firefox and Safari private windows, and Brave all the time, round off or randomise values like CPU threads and canvas pixels. That's a real defence, but only a partial one.</li>
-      <li><strong>The core ID stays the same:</strong> this is why it's only partial. Real trackers don't need an exact match. They match <em>fuzzily</em>, mostly on signals that are hard to fake: GPU, time zone, language, OS, codecs. If most of those agree, the two visits probably came from the same person.</li>
-    </ul>
-    <p>To see exactly which signals changed, use <a href="#compare">Compare two visits</a>. Then try another browser on the same computer. Some signals (fonts, graphics card, screen) follow you across browsers too.</p>
+    <details class="breakdown" id="breakdown">
+      <summary><span class="when-closed">What's it made of?</span><span class="when-open">Hide the breakdown</span></summary>
+      <p class="muted small">These are the signals behind that ID: the ones that are hard to change. Faking them breaks websites, so even private windows and anti-tracking modes mostly leave them alone. Open any one to see what it is.</p>
+      <div id="core-list"><p class="muted">gathering signals…</p></div>
+    </details>
 
-    <p class="tag">How to read the results: each section is tagged with how identifying it tends to be. Values marked <b>~</b> change often (window size, battery level), so they're left out of both IDs. Values marked <b>●</b> are part of the core ID.</p>
-
-    <div id="slot-toc">
-    <details class="toc" id="toc">
-      <summary>Contents</summary>
-      <nav aria-label="Contents">
-        <p class="toc-group">Techniques</p>
-        <ol>
-          <li><a href="#connection">Your connection</a></li>
-          <li><a href="#navigator">Navigator properties</a></li>
-          <li><a href="#client-hints">User-Agent Client Hints</a></li>
-          <li><a href="#screen">Screen and window</a></li>
-          <li><a href="#intl">Time zone and locale</a></li>
-          <li><a href="#canvas">Canvas</a></li>
-          <li><a href="#webgl">WebGL</a></li>
-          <li><a href="#webgpu">WebGPU</a></li>
-          <li><a href="#audio">Audio</a></li>
-          <li><a href="#fonts">Installed fonts</a></li>
-          <li><a href="#text-metrics">Text and emoji</a></li>
-          <li><a href="#media-queries">CSS media queries</a></li>
-          <li><a href="#speech">Speech voices</a></li>
-          <li><a href="#media">Media and codecs</a></li>
-          <li><a href="#permissions">Permissions</a></li>
-          <li><a href="#storage">Storage and blockers</a></li>
-          <li><a href="#webrtc">WebRTC</a></li>
-          <li><a href="#engine">JavaScript engine</a></li>
-          <li><a href="#hardware">Hardware extras</a></li>
-        </ol>
-        <p class="toc-group">Beyond this page</p>
-        <ol>
-          <li><a href="#cant-see">What this page can't show</a></li>
-          <li><a href="#defences">How to defend yourself</a></li>
-          <li><a href="#further">Further reading</a></li>
-        </ol>
-        <p class="toc-group">Your data</p>
-        <ol>
-          <li><a href="#summary">Your fingerprint</a></li>
-          <li><a href="#raw">Raw data</a></li>
-          <li><a href="#compare">Compare two visits</a></li>
-        </ol>
-      </nav>
+    <h2>Try it</h2>
+    <div class="rows">
+    <details class="row" id="try">
+      <summary><span class="row-name">Does it survive a private window?</span></summary>
+      <div class="row-body">
+        <p>Open this page in a private window, or after clearing your cookies, and compare the IDs. There are really two: the one above, and an <strong>exact</strong> ID built from every stable signal on this page:</p>
+        <p class="id" id="fp-id">computing…</p>
+        <p class="muted small" id="fp-meta">&nbsp;</p>
+        <ul>
+          <li><strong>The exact ID stays the same:</strong> a tracker can link those visits trivially.</li>
+          <li><strong>The exact ID changes:</strong> your browser is altering some answers. Firefox and Safari private windows, and Brave all the time, round off or randomise values like CPU threads and canvas pixels. That's a real defence, but only a partial one.</li>
+          <li><strong>Your fingerprint stays the same:</strong> this is why it's only partial. Real trackers don't need an exact match. They match <em>fuzzily</em>, mostly on signals that are hard to fake: GPU, time zone, language, OS, codecs. If most of those agree, the two visits probably came from the same person.</li>
+        </ul>
+        <p>To see exactly which signals changed, use <a href="#compare">Compare two visits</a>. Then try another browser on the same computer. Some signals (fonts, graphics card, screen) follow you across browsers too.</p>
+      </div>
+    </details>
+    <details class="row" id="compare">
+      <summary><span class="row-name">Compare two visits</span></summary>
+      <div class="row-body">
+        <p>Copy the JSON in one window, paste it here in another (a private window or a different browser), and see which signals changed.</p>
+        <p><button type="button" id="copy">Copy this window's JSON</button> <span class="muted" id="copy-status" aria-live="polite"></span></p>
+        <label for="compare-input" class="muted">JSON from the other window:</label>
+        <textarea id="compare-input" spellcheck="false" placeholder='{ "id": "…", "navigator": { … }, … }'></textarea>
+        <p><button type="button" id="compare-run">Compare</button></p>
+        <div id="compare-out" aria-live="polite"></div>
+      </div>
+    </details>
+    <details class="row" id="raw">
+      <summary><span class="row-name">Raw data</span></summary>
+      <div class="row-body">
+        <p>Everything collected, as JSON.</p>
+        <div class="code-box">
+          <button type="button" class="copy-btn" id="copy-raw">Copy</button>
+          <pre><code id="raw-json">computing…</code></pre>
+        </div>
+      </div>
     </details>
     </div>
 
-    <!-- ---------------------------------------------------------------- -->
+    <h2>How each technique works</h2>
+    <p class="muted small">Each one is tagged with how identifying it tends to be. In the results, values marked <b>~</b> change often (window size, battery level), so they're left out of both IDs. Values marked <b class="core-dot">●</b> are part of your fingerprint.</p>
 
-    <section id="connection">
-      <h2>Your connection</h2>
-      <p class="tag">identifying: <b class="high">high</b> · seen before any script runs</p>
+    <div class="rows">
+    <details class="row technique" id="connection">
+      <summary><span class="row-name">Your connection</span><span class="lvl high">high</span></summary>
+      <div class="row-body">
+      <p class="tag">seen before any script runs</p>
       <p>Before your browser asks for a page, it sets up an encrypted (TLS) connection and opens with a <em>ClientHello</em>: the TLS versions, ciphers, key exchanges and extensions it supports, in its own order. Over HTTP/2 it then sends its settings and request headers, again in its own order. Every server sees all of this, and none of it needs JavaScript or can be turned off in settings.</p>
-      <p>This is the one section that comes from the server: it reads the opening bytes of your connection and sends back what they show. Nothing is kept.</p>
+      <p>This is the one section that comes from the server: it reads the opening bytes of your connection and sends back what they show.</p>
       <p><strong>JA4</strong> condenses the ClientHello into a short code. It's the same in normal and private windows, because both use the same TLS library, which is why it's part of the core ID. It's also very hard to fake, so bot-detection services lean on it: a script claiming to be Chrome but greeting the server like Python's TLS library is caught straight away. <strong>JA3</strong> is the older version. Chrome now shuffles its extension order on every connection, so its JA3 changes constantly while its JA4, which sorts them first, stays put. The <strong>HTTP/2 fingerprint</strong> does the same for HTTP/2's opening settings and the order of the <code>:method</code>, <code>:authority</code>, <code>:scheme</code> and <code>:path</code> headers.</p>
       <dl class="out"><dt>…</dt><dd>running</dd></dl>
       <details>
         <summary>How it works</summary>
-<pre><code>t13d1516h2_8daaf6152771_e5627efa2ab1
+<pre><code>JA4: an example TLS fingerprint
+t13d1516h2_8daaf6152771_e5627efa2ab1
 │││ │ │ │  │            └ hash of extensions + signature algorithms
 │││ │ │ │  └ hash of cipher suites (sorted)
 │││ │ │ └ first ALPN: h2 (HTTP/2)
@@ -366,11 +347,13 @@ Chrome:  1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p
 Firefox: 1:65536;2:0;4:131072;5:16384|12517377|0|m,p,a,s</code></pre>
         <p>The full details are at <a href="/api/connection">/api/connection</a>. Real trackers also use your IP address, which is shown here but left out of both IDs, because it changes whenever you change networks.</p>
       </details>
-    </section>
+      </div>
+    </details>
 
-    <section id="navigator">
-      <h2>Navigator properties</h2>
-      <p class="tag">identifying: <b class="medium">medium</b> · the oldest trick in the book</p>
+    <details class="row technique" id="navigator">
+      <summary><span class="row-name">Navigator properties</span><span class="lvl medium">medium</span></summary>
+      <div class="row-body">
+      <p class="tag">the oldest trick in the book</p>
       <p>The <code>navigator</code> object describes your browser: its name and version (the user agent), operating system, preferred languages, number of CPU threads, rough memory size, and whether it has a touch screen. One of these isn't much to go on. Together they narrow you down fast: "Firefox 140 on Linux, 16 threads, preferred languages en-AU then de" is a small crowd.</p>
       <dl class="out"><dt>…</dt><dd>running</dd></dl>
       <details>
@@ -382,11 +365,13 @@ navigator.deviceMemory       // 8 (Chromium only, rounded)
 navigator.maxTouchPoints     // 0 on most desktops</code></pre>
         <p>Ironically, the "Do Not Track" setting itself became a fingerprinting signal, because so few people turned it on.</p>
       </details>
-    </section>
+      </div>
+    </details>
 
-    <section id="client-hints">
-      <h2>User-Agent Client Hints</h2>
-      <p class="tag">identifying: <b class="medium">medium</b> · Chromium only</p>
+    <details class="row technique" id="client-hints">
+      <summary><span class="row-name">User-Agent Client Hints</span><span class="lvl medium">medium</span></summary>
+      <div class="row-body">
+      <p class="tag">Chromium only</p>
       <p>Chromium-based browsers (Chrome, Edge, Opera, Brave) froze much of the user agent string to reduce passive fingerprinting. Instead, a page can now <em>ask</em> for details like the exact OS version, CPU architecture and device model. The detail is still there, but asking for it is visible, so browsers could limit or audit it.</p>
       <dl class="out"><dt>…</dt><dd>running</dd></dl>
       <details>
@@ -396,18 +381,20 @@ navigator.maxTouchPoints     // 0 on most desktops</code></pre>
   "platformVersion", "fullVersionList",
 ]);</code></pre>
       </details>
-    </section>
+      </div>
+    </details>
 
-    <section id="screen">
-      <h2>Screen and window</h2>
-      <p class="tag">identifying: <b class="medium">medium</b></p>
+    <details class="row technique" id="screen">
+      <summary><span class="row-name">Screen and window</span><span class="lvl medium">medium</span></summary>
+      <div class="row-body">
       <p>Screen resolution, the space your taskbar or dock takes up, pixel density and colour depth. A 1920×1080 screen is common. A 2560×1440 screen at 125% scaling with a taskbar on the left is less so.</p>
       <dl class="out"><dt>…</dt><dd>running</dd></dl>
-    </section>
+      </div>
+    </details>
 
-    <section id="intl">
-      <h2>Time zone and locale</h2>
-      <p class="tag">identifying: <b class="medium">medium</b></p>
+    <details class="row technique" id="intl">
+      <summary><span class="row-name">Time zone and locale</span><span class="lvl medium">medium</span></summary>
+      <div class="row-body">
       <p>Your time zone tells a site roughly where you are, without asking for your location. If it doesn't match where your IP address says you are (say, you're on a VPN), that mismatch is a signal too. Date and number formatting show your regional settings.</p>
       <dl class="out"><dt>…</dt><dd>running</dd></dl>
       <details>
@@ -415,11 +402,13 @@ navigator.maxTouchPoints     // 0 on most desktops</code></pre>
 <pre><code>Intl.DateTimeFormat().resolvedOptions().timeZone // "Australia/Sydney"
 (1234567.891).toLocaleString()                    // "1,234,567.891"</code></pre>
       </details>
-    </section>
+      </div>
+    </details>
 
-    <section id="canvas">
-      <h2>Canvas fingerprinting</h2>
-      <p class="tag">identifying: <b class="high">high</b> · first described in 2012</p>
+    <details class="row technique" id="canvas">
+      <summary><span class="row-name">Canvas fingerprinting</span><span class="lvl high">high</span></summary>
+      <div class="row-body">
+      <p class="tag">first described in 2012</p>
       <p>The page draws some text, an emoji and overlapping shapes on an invisible canvas, then reads back the pixels. You'd expect every computer to draw the same image. They don't. Your graphics card, its driver, your operating system's font smoothing and anti-aliasing all change the result by a few pixels. Those differences are invisible to you but very consistent on your machine, so a hash of the image works as an ID.</p>
       <figure>
         <canvas id="canvas-preview" width="280" height="60" aria-label="The image drawn for canvas fingerprinting"></canvas>
@@ -435,11 +424,12 @@ ctx.fillText("Cwm fjordbank glyphs vext quiz 😃", 2, 15);
 const id = hash(canvas.toDataURL());</code></pre>
         <p>The page draws the image twice. Some browsers (Brave, Firefox with fingerprinting protection, Safari in private mode) add tiny random noise to canvas reads. If the two hashes differ, your browser is doing that.</p>
       </details>
-    </section>
+      </div>
+    </details>
 
-    <section id="webgl">
-      <h2>WebGL</h2>
-      <p class="tag">identifying: <b class="high">high</b></p>
+    <details class="row technique" id="webgl">
+      <summary><span class="row-name">WebGL</span><span class="lvl high">high</span></summary>
+      <div class="row-body">
       <p>WebGL gives pages direct access to your graphics card for 3D. Many browsers will just tell a page the name of the card and its driver. Beyond that, every GPU has its own limits (largest texture, number of shader inputs) and supports its own list of extensions. Like the canvas test, the page can also render a shape with a small shader and hash the pixels, which differ subtly between GPUs.</p>
       <dl class="out"><dt>…</dt><dd>running</dd></dl>
       <details>
@@ -451,11 +441,13 @@ gl.getParameter(ext.UNMASKED_RENDERER_WEBGL);
 gl.getSupportedExtensions();       // a long, GPU-specific list
 gl.getParameter(gl.MAX_TEXTURE_SIZE);</code></pre>
       </details>
-    </section>
+      </div>
+    </details>
 
-    <section id="webgpu">
-      <h2>WebGPU</h2>
-      <p class="tag">identifying: <b class="high">high</b> · the new frontier</p>
+    <details class="row technique" id="webgpu">
+      <summary><span class="row-name">WebGPU</span><span class="lvl high">high</span></summary>
+      <div class="row-body">
+      <p class="tag">the new frontier</p>
       <p>WebGPU is WebGL's successor. It exposes the GPU vendor and architecture, plus a long list of feature flags and numeric limits. Researchers have also shown that timing how GPU work is scheduled can tell apart even identical models of graphics card. This page only reads the descriptive info.</p>
       <dl class="out"><dt>…</dt><dd>running</dd></dl>
       <details>
@@ -465,11 +457,13 @@ adapter.info.vendor;        // "nvidia"
 adapter.info.architecture;  // "ampere"
 [...adapter.features];      // supported feature flags</code></pre>
       </details>
-    </section>
+      </div>
+    </details>
 
-    <section id="audio">
-      <h2>Audio fingerprinting</h2>
-      <p class="tag">identifying: <b class="medium">medium</b> · no speakers needed</p>
+    <details class="row technique" id="audio">
+      <summary><span class="row-name">Audio fingerprinting</span><span class="lvl medium">medium</span></summary>
+      <div class="row-body">
+      <p class="tag">no speakers needed</p>
       <p>The page builds a tiny sound: a tone fed through a compressor. It renders it silently in memory and adds up the samples. The floating-point maths in your browser's audio engine, CPU and OS give a slightly different number on different setups. Nothing is played, and no microphone is used.</p>
       <dl class="out"><dt>…</dt><dd>running</dd></dl>
       <details>
@@ -484,11 +478,12 @@ osc.start();
 const samples = (await ctx.startRendering()).getChannelData(0);
 // sum a slice of samples → e.g. 124.04347527516074</code></pre>
       </details>
-    </section>
+      </div>
+    </details>
 
-    <section id="fonts">
-      <h2>Installed fonts</h2>
-      <p class="tag">identifying: <b class="high">high</b></p>
+    <details class="row technique" id="fonts">
+      <summary><span class="row-name">Installed fonts</span><span class="lvl high">high</span></summary>
+      <div class="row-body">
       <p>Sites can't list your fonts directly, but they can test for them. The page measures some text in a fallback font, then asks for it in, say, "Calibri" with that same fallback. If the width changes, Calibri is installed. Your fonts reveal your OS, and also any apps you've installed (Office, Adobe, coding tools) and languages you use.</p>
       <dl class="out"><dt>…</dt><dd>running</dd></dl>
       <details>
@@ -498,18 +493,21 @@ const base = ctx.measureText("mmmmmmmmmmlli").width;
 ctx.font = '72px "Calibri", monospace';
 const installed = ctx.measureText("mmmmmmmmmmlli").width !== base;</code></pre>
       </details>
-    </section>
+      </div>
+    </details>
 
-    <section id="text-metrics">
-      <h2>Text and emoji rendering</h2>
-      <p class="tag">identifying: <b class="medium">medium</b></p>
+    <details class="row technique" id="text-metrics">
+      <summary><span class="row-name">Text and emoji rendering</span><span class="lvl medium">medium</span></summary>
+      <div class="row-body">
       <p>A close cousin of font detection. The page measures the exact size of some emoji and non-Latin text, down to fractions of a pixel. Emoji sets differ between OS versions, and text shaping differs between rendering engines. No canvas is involved, so blocking canvas reads doesn't stop this one.</p>
       <dl class="out"><dt>…</dt><dd>running</dd></dl>
-    </section>
+      </div>
+    </details>
 
-    <section id="media-queries">
-      <h2>CSS media queries</h2>
-      <p class="tag">identifying: <b class="low">low</b> · works without JavaScript</p>
+    <details class="row technique" id="media-queries">
+      <summary><span class="row-name">CSS media queries</span><span class="lvl low">low</span></summary>
+      <div class="row-body">
+      <p class="tag">works without JavaScript</p>
       <p>Dark mode, reduced motion, high contrast, colour gamut, HDR, mouse or touchscreen. Each one is a user preference or hardware fact. Plain CSS can read these too and load a different background image for each answer, so even a site with JavaScript off can collect them.</p>
       <dl class="out"><dt>…</dt><dd>running</dd></dl>
       <details>
@@ -518,46 +516,55 @@ const installed = ctx.measureText("mmmmmmmmmmlli").width !== base;</code></pre>
 matchMedia("(color-gamut: p3)").matches
 matchMedia("(pointer: coarse)").matches</code></pre>
       </details>
-    </section>
+      </div>
+    </details>
 
-    <section id="speech">
-      <h2>Speech synthesis voices</h2>
-      <p class="tag">identifying: <b class="medium">medium</b></p>
+    <details class="row technique" id="speech">
+      <summary><span class="row-name">Speech synthesis voices</span><span class="lvl medium">medium</span></summary>
+      <div class="row-body">
       <p>The list of text-to-speech voices on your system depends on your OS, its version and any language packs you've installed.</p>
       <dl class="out"><dt>…</dt><dd>running</dd></dl>
-    </section>
+      </div>
+    </details>
 
-    <section id="media">
-      <h2>Media devices and codecs</h2>
-      <p class="tag">identifying: <b class="medium">medium</b></p>
+    <details class="row technique" id="media">
+      <summary><span class="row-name">Media devices and codecs</span><span class="lvl medium">medium</span></summary>
+      <div class="row-body">
       <p>Without asking permission, a page can count your cameras, microphones and speakers (the names stay hidden until you grant access). It can also check which audio and video formats you can play, and which codecs your browser offers for video calls. Both depend on your OS, browser build and hardware decoders.</p>
       <dl class="out"><dt>…</dt><dd>running</dd></dl>
-    </section>
+      </div>
+    </details>
 
-    <section id="permissions">
-      <h2>Permission states</h2>
-      <p class="tag">identifying: <b class="low">low</b></p>
+    <details class="row technique" id="permissions">
+      <summary><span class="row-name">Permission states</span><span class="lvl low">low</span></summary>
+      <div class="row-body">
       <p>Pages can check whether you've already granted or blocked permissions like notifications or location, without triggering a prompt. Most people never touch these, so if you have blocked notifications everywhere, that makes you stand out a little.</p>
       <dl class="out"><dt>…</dt><dd>running</dd></dl>
-    </section>
+      </div>
+    </details>
 
-    <section id="storage">
-      <h2>Storage and privacy signals</h2>
-      <p class="tag">identifying: <b class="low">low</b> · mostly used to spot private windows and blockers</p>
+    <details class="row technique" id="storage">
+      <summary><span class="row-name">Storage and privacy signals</span><span class="lvl low">low</span></summary>
+      <div class="row-body">
+      <p class="tag">mostly used to spot private windows and blockers</p>
       <p>How much storage your browser offers this site can hint that you're in a private window. A hidden "ad-shaped" element shows whether an ad blocker is running. Your choice of blocker filter lists can itself be identifying.</p>
       <dl class="out"><dt>…</dt><dd>running</dd></dl>
-    </section>
+      </div>
+    </details>
 
-    <section id="webrtc">
-      <h2>WebRTC</h2>
-      <p class="tag">identifying: <b class="low">low</b> today · used to be <b class="high">high</b></p>
+    <details class="row technique" id="webrtc">
+      <summary><span class="row-name">WebRTC</span><span class="lvl low">low</span></summary>
+      <div class="row-body">
+      <p class="tag">used to be <b class="high">high</b></p>
       <p>WebRTC powers video calls, and to connect two people it gathers your network addresses. Until about 2019 this leaked your private LAN IP (like <code>192.168.1.23</code>) to any page, even through a VPN. Modern browsers hide it behind a random <code>….local</code> name. This page only gathers local candidates and contacts no outside server. A real tracker would also use a public STUN server to learn your public IP.</p>
       <dl class="out"><dt>…</dt><dd>running</dd></dl>
-    </section>
+      </div>
+    </details>
 
-    <section id="engine">
-      <h2>JavaScript engine quirks</h2>
-      <p class="tag">identifying: <b class="low">low</b> · great at catching liars</p>
+    <details class="row technique" id="engine">
+      <summary><span class="row-name">JavaScript engine quirks</span><span class="lvl low">low</span></summary>
+      <div class="row-body">
+      <p class="tag">great at catching liars</p>
       <p>Each JavaScript engine (V8 in Chrome, SpiderMonkey in Firefox, JavaScriptCore in Safari) computes some maths functions with tiny differences in the last digit. Each also words its error messages its own way and supports a different set of APIs. None of this is very unique, but it reveals your real engine even when the user agent string is faked. Bot-detection services rely heavily on this.</p>
       <dl class="out"><dt>…</dt><dd>running</dd></dl>
       <details>
@@ -568,30 +575,25 @@ try { null.x } catch (e) { e.message }
 // Gecko: "null has no properties"
 // JSC:   "null is not an object (evaluating 'null.x')"</code></pre>
       </details>
-    </section>
+      </div>
+    </details>
 
-    <section id="hardware">
-      <h2>Hardware extras</h2>
-      <p class="tag">identifying: <b class="low">low</b> · mostly short-lived</p>
+    <details class="row technique" id="hardware">
+      <summary><span class="row-name">Hardware extras</span><span class="lvl low">low</span></summary>
+      <div class="row-body">
+      <p class="tag">mostly short-lived</p>
       <p>Keyboard layout, network speed and battery. In 2015, researchers showed the Battery API's very precise readings could link a visitor across sites for a few minutes. Firefox and Safari removed it as a result.</p>
       <dl class="out"><dt>…</dt><dd>running</dd></dl>
-    </section>
+      </div>
+    </details>
 
-    <hr>
+    </div>
 
-    <section id="cant-see">
-      <h2>What this page can't show you</h2>
-      <p>Some techniques need more than one page view, or a view of the network this server doesn't have. Real trackers use them all the time:</p>
-      <ul>
-        <li><strong>TCP/IP fingerprint</strong> (p0f). Before TLS even starts, the first TCP packet reveals your operating system through details like its initial TTL and window size. This server sits behind a proxy, so it never sees that packet.</li>
-        <li><strong>HTTP/3 (QUIC).</strong> Browsers that use HTTP/3 send a different set of transport settings, which can be fingerprinted the same way as HTTP/2. This site only offers HTTP/2.</li>
-        <li><strong>Behaviour.</strong> How you type, move the mouse and scroll.</li>
-        <li><strong>Supercookies.</strong> Not fingerprints exactly, but IDs hidden in places cookie-clearing misses: favicon caches, HSTS flags, ETags. Browsers have closed most of these by giving each site its own cache.</li>
-      </ul>
-    </section>
-
-    <section id="defences">
-      <h2>How to defend yourself</h2>
+    <h2>Beyond this page</h2>
+    <div class="rows">
+    <details class="row" id="defences">
+      <summary><span class="row-name">How to defend yourself</span></summary>
+      <div class="row-body">
       <p>There are two strategies. You can <strong>blend in</strong>: make your browser look like everyone else's. Or you can <strong>randomise</strong>: give a slightly different answer each time so your fingerprint never stays the same. Hiding things (blocking scripts, faking an unusual user agent) often backfires, because being unusual is itself identifying.</p>
       <ul>
         <li><strong>Tor Browser</strong> blends in. Every user gets the same window size (rounded), fonts, time zone and user agent. It's the strongest option, but sites can usually tell you're using Tor.</li>
@@ -602,48 +604,39 @@ try { null.x } catch (e) { e.message }
         <li><strong>Content blockers</strong> like uBlock Origin block many fingerprinting scripts by their address. This works whatever your fingerprint is.</li>
       </ul>
       <p>The ad and fraud-prevention industries keep inventing new signals, and browsers keep closing them. No defence is perfect. Using a mainstream, up-to-date browser with its protections turned on goes a long way.</p>
-    </section>
-
-    <section id="further">
-      <h2>Further reading</h2>
+      </div>
+    </details>
+    <details class="row" id="cant-see">
+      <summary><span class="row-name">What this page can't show you</span></summary>
+      <div class="row-body">
+      <p>Some techniques need more than one page view, or a view of the network this server doesn't have. Real trackers use them all the time:</p>
       <ul>
-        <li><a href="https://coveryourtracks.eff.org/">Cover Your Tracks</a> (EFF): compares your fingerprint against other visitors, so it can estimate how unique you are. This page can't, because it keeps nothing.</li>
+        <li><strong>TCP/IP fingerprint</strong> (p0f). Before TLS even starts, the first TCP packet reveals your operating system through details like its initial TTL and window size. This server sits behind a proxy, so it never sees that packet.</li>
+        <li><strong>HTTP/3 (QUIC).</strong> Browsers that use HTTP/3 send a different set of transport settings, which can be fingerprinted the same way as HTTP/2. This site only offers HTTP/2.</li>
+        <li><strong>Behaviour.</strong> How you type, move the mouse and scroll.</li>
+        <li><strong>Supercookies.</strong> Not fingerprints exactly, but IDs hidden in places cookie-clearing misses: favicon caches, HSTS flags, ETags. Browsers have closed most of these by giving each site its own cache.</li>
+      </ul>
+      </div>
+    </details>
+    <details class="row" id="further">
+      <summary><span class="row-name">Further reading</span></summary>
+      <div class="row-body">
+      <ul>
+        <li><a href="https://coveryourtracks.eff.org/">Cover Your Tracks</a> (EFF): compares your fingerprint against other visitors, so it can estimate how unique you are.</li>
         <li><a href="https://amiunique.org/">AmIUnique</a>: a similar research project with published papers.</li>
         <li><a href="https://www.w3.org/TR/fingerprinting-guidance/">Mitigating Browser Fingerprinting in Web Specifications</a> (W3C): how standards authors try to avoid creating new signals.</li>
         <li><a href="https://github.com/FoxIO-LLC/ja4">JA4+</a>: the JA4 specification, and related fingerprints for servers, HTTP and SSH.</li>
         <li><a href="https://tls.peet.ws/">TrackMe</a>: shows your TLS and HTTP/2 fingerprints in full detail.</li>
         <li><a href="https://github.com/fingerprintjs/fingerprintjs">FingerprintJS</a>: an open-source fingerprinting library. Reading its source is a good way to see these techniques in practice.</li>
       </ul>
-    </section>
-
-    <div id="slot-tools">
-    <section id="raw">
-      <h2>Raw data</h2>
-      <p>Everything collected above, as JSON. It exists only in this tab and is gone when you close it.</p>
-      <p><button type="button" id="copy">Copy JSON</button> <span class="muted" id="copy-status" aria-live="polite"></span></p>
-      <details>
-        <summary>Show</summary>
-        <pre><code id="raw-json">computing…</code></pre>
-      </details>
-    </section>
-
-    <section id="compare">
-      <h2>Compare two visits</h2>
-      <p>Copy the JSON in one window, paste it here in another (a private window or a different browser), and see which signals changed.</p>
-      <label for="compare-input" class="muted">JSON from the other window:</label>
-      <textarea id="compare-input" spellcheck="false" placeholder='{ "id": "…", "navigator": { … }, … }'></textarea>
-      <p><button type="button" id="compare-run">Compare</button></p>
-      <div id="compare-out" aria-live="polite"></div>
-    </section>
+      </div>
+    </details>
     </div>
 
     <!-- Bait for the ad-blocker probe: ad blockers hide elements with these class names. -->
     <div class="bait ad ads adsbox ad-banner ad-placement textads banner-ads" aria-hidden="true">&nbsp;</div>
 
     <!-- include:footer -->
-  </div>
-
-  <div class="toc-col" id="toc-col"></div>
   </div>
 
   <script>
@@ -1167,66 +1160,116 @@ try { null.x } catch (e) { e.message }
       return rows;
     };
 
-    // ---- layout --------------------------------------------------------------
+    // ---- the breakdown -------------------------------------------------------
 
-    // Same breakpoints as the CSS. Moving the nodes (rather than duplicating
-    // them) keeps one copy of each, so their state and listeners survive.
-    const MID = matchMedia("(min-width: 60rem)");
-    const WIDE = matchMedia("(min-width: 90rem)");
-    const byId = (id) => document.getElementById(id);
-    const toc = byId("toc");
+    // The core signals, grouped and explained for the breakdown under the ID.
+    // Keys are probe.label, matching the rows flagged "c" above. A core row
+    // missing here still shows, under "Other", with its raw label.
+    const CORE = [
+      ["Where you are", [
+        ["intl.Time zone", "Time zone", "Tells a site roughly where you are without asking for your location. If it disagrees with where your IP address says you are (say, you're on a VPN), that mismatch is a signal too."],
+        ["intl.Locale", "Region", "The regional settings your browser formats dates and numbers with."],
+        ["navigator.Languages", "Languages", "The languages you've asked sites to use, in order. English alone is a big crowd; English then German is a much smaller one."],
+      ]],
+      ["Your device", [
+        ["webgl.GPU vendor", "Graphics vendor", "Who made your graphics chip, or the layer your browser draws through."],
+        ["webgl.GPU renderer", "Graphics card", "Your graphics card's model, often with its driver. Browsers rarely hide it, because sites need it to draw 3D properly."],
+        ["screen.Pixel ratio", "Display scaling", "How many screen pixels make up one CSS pixel. It comes from your screen and your OS scaling setting, which most people set once and leave."],
+        ["screen.Colour depth", "Colour depth", "How many bits per pixel your display reports."],
+        ["media-queries.Colour gamut", "Colour range", "Whether your screen can show colours beyond the standard range. Plain CSS can check this, with no JavaScript at all."],
+        ["media-queries.Pointer", "Pointer", "What you point with: a mouse or trackpad (fine), a finger (coarse), or nothing."],
+        ["media-queries.Hover", "Hover", "Whether your main pointer can hover over things. A mouse can; a finger can't."],
+        ["speech.Hash", "Speech voices", "A hash of the text-to-speech voices on your system. They depend on your OS, its version and any language packs you've installed."],
+      ]],
+      ["Your browser", [
+        ["navigator.User agent", "User agent", "Your browser's description of itself: its name, version and operating system. It's sent with every request."],
+        ["navigator.Platform", "Platform", "The operating system your browser says it runs on."],
+        ["media.Can play", "Media formats", "Which audio and video formats your browser can play. It depends on your OS, your browser's build and your hardware decoders."],
+        ["media.Call codec hash", "Call codecs", "A hash of the codecs your browser offers for video calls, and their settings."],
+        ["engine.Error message", "Error wording", "How your browser words a simple error. Each JavaScript engine phrases it differently, so this reveals your real browser even if the user agent lies."],
+        ["engine.Maths hash", "Maths quirks", "A hash of a dozen maths results. Engines differ in the last digit of some, which again gives away the real engine."],
+      ]],
+      ["Your connection", [
+        ["connection.JA4", "TLS handshake", "How your browser opens an encrypted connection: the ciphers and extensions it offers. The server sees it before the page even loads, and it's the same in a private window."],
+        ["connection.HTTP/2 fingerprint", "HTTP/2 settings", "The settings your browser opens an HTTP/2 connection with. They're baked into its networking code, so no setting changes them."],
+      ]],
+    ];
 
-    function place() {
-      if (WIDE.matches) {
-        byId("panel").append(byId("summary"), byId("raw"), byId("compare"));
-      } else {
-        byId("slot-summary").append(byId("summary"));
-        byId("slot-tools").append(byId("raw"), byId("compare"));
-      }
-      // Frosted only in the side column, where it floats over the generative background.
-      toc.classList.toggle("glass", MID.matches);
-      if (MID.matches) {
-        byId("toc-col").append(toc);
-        toc.open = true;
-      } else if (toc.parentElement.id !== "slot-toc") {
-        byId("slot-toc").append(toc);
-        toc.open = false;
-      }
-      spy();
+    function el(tag, cls, text) {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text !== undefined) e.textContent = text;
+      return e;
     }
 
-    // Highlight the contents entry for the section being read: of the targets
-    // whose top has scrolled past a third of the way down the screen, the one
-    // lowest on the page. Targets in the side panel are always on screen, so
-    // they're skipped.
-    const tocLinks = [...toc.querySelectorAll("a")];
-    function spy() {
-      let current = null;
-      let best = -Infinity;
-      for (const a of tocLinks) {
-        const target = byId(a.hash.slice(1));
-        if (!target || target.closest(".panel")) continue;
-        const top = target.getBoundingClientRect().top;
-        if (top < innerHeight / 3 && top > best) { best = top; current = a; }
+    function signalRow(probe, label, name, about) {
+      const row = (results[probe] || []).find(([l]) => l === label);
+      const text = row ? fmt(row[1]) : null;
+      const d = el("details", "row signal");
+      const s = el("summary");
+      s.append(el("span", "row-name", name), el("span", text === null ? "row-val na" : "row-val", text ?? "not available"));
+      const body = el("div", "row-body");
+      if (text === null) body.append(el("p", "muted", "Your browser didn't give this one away."));
+      else if (text.length > 36) body.append(el("p", "full", text));
+      if (about) body.append(el("p", "", about));
+      const section = document.getElementById(probe);
+      if (section) {
+        const more = el("p", "small");
+        const a = el("a", "", `More on ${section.querySelector(".row-name").textContent} ↓`);
+        a.href = `#${probe}`;
+        more.append(a);
+        body.append(more);
       }
-      for (const a of tocLinks) a.classList.toggle("active", a === current);
+      d.append(s, body);
+      return d;
     }
 
-    let spyQueued = false;
-    addEventListener("scroll", () => {
-      if (spyQueued) return;
-      spyQueued = true;
-      requestAnimationFrame(() => { spyQueued = false; spy(); });
-    }, { passive: true });
+    function renderBreakdown(coreEntries) {
+      const list = document.getElementById("core-list");
+      list.replaceChildren();
+      const shown = new Set();
+      const groups = CORE.map(([title, items]) => [title, items.map(([key, name, about]) => {
+        shown.add(key);
+        return [key, name, about];
+      })]);
+      const other = coreEntries.filter((k) => !shown.has(k)).map((k) => [k, k.slice(k.indexOf(".") + 1), ""]);
+      if (other.length) groups.push(["Other", other]);
+      for (const [title, items] of groups) {
+        list.append(el("p", "group", title));
+        const rows = el("div", "rows");
+        for (const [key, name, about] of items) {
+          const dot = key.indexOf(".");
+          rows.append(signalRow(key.slice(0, dot), key.slice(dot + 1), name, about));
+        }
+        list.append(rows);
+      }
+    }
 
-    // On phones, close the contents box after jumping to a section.
-    toc.addEventListener("click", (e) => {
-      if (e.target.closest("a") && !MID.matches) toc.open = false;
+    // ---- links into collapsed rows -------------------------------------------
+
+    // A link to a section inside closed <details> opens it (and any parents)
+    // first, so the jump lands on something visible.
+    function reveal(id) {
+      const target = id && document.getElementById(id);
+      if (!target) return null;
+      for (let d = target.closest("details"); d; d = d.parentElement && d.parentElement.closest("details")) d.open = true;
+      return target;
+    }
+
+    document.addEventListener("click", (e) => {
+      const a = e.target.closest('a[href^="#"]');
+      if (!a) return;
+      const target = reveal(decodeURIComponent(a.hash.slice(1)));
+      if (target && a.hash === location.hash) target.scrollIntoView();
     });
-
-    MID.addEventListener("change", place);
-    WIDE.addEventListener("change", place);
-    place();
+    addEventListener("hashchange", () => {
+      const t = reveal(decodeURIComponent(location.hash.slice(1)));
+      if (t) t.scrollIntoView();
+    });
+    if (location.hash) {
+      const t = reveal(decodeURIComponent(location.hash.slice(1)));
+      if (t) t.scrollIntoView();
+    }
 
     // ---- run -----------------------------------------------------------------
 
@@ -1246,28 +1289,31 @@ try { null.x } catch (e) { e.message }
     (async () => {
       await Promise.all(Object.keys(probes).map(run));
 
-      // The exact ID hashes every stable value; the core ID hashes only the
-      // core ones. Both walk the probes in a fixed order.
+      // The exact ID hashes every stable value; the core ID (shown as "your
+      // fingerprint") hashes only the core ones. Both walk the probes in a
+      // fixed order, so changing labels or flags changes everyone's IDs.
       const stable = [];
       const core = [];
+      const coreKeys = [];
       for (const probe of Object.keys(probes)) {
         for (const [label, value, flags = ""] of results[probe]) {
           if (flags.includes("v")) continue;
           const entry = `${probe}.${label}=${fmt(value)}`;
           stable.push(entry);
-          if (flags.includes("c")) core.push(entry);
+          if (flags.includes("c")) { core.push(entry); coreKeys.push(`${probe}.${label}`); }
         }
       }
       const present = (list) => list.filter((e) => !e.endsWith("=null")).length;
       const spaced = (h) => h.match(/.{1,4}/g).join(" ");
       const id = hash(stable.join("\n"));
       const coreId = hash(core.join("\n"));
+      document.getElementById("fp-core").textContent = spaced(coreId);
+      document.getElementById("fp-core-meta").textContent =
+        `built from ${present(core)} hard-to-change signals`;
       document.getElementById("fp-id").textContent = spaced(id);
       document.getElementById("fp-meta").textContent =
         `built from ${present(stable)} signals across ${Object.keys(probes).length} techniques`;
-      document.getElementById("fp-core").textContent = spaced(coreId);
-      document.getElementById("fp-core-meta").textContent =
-        `built from ${present(core)} signals, marked ● in the results`;
+      renderBreakdown(coreKeys);
 
       const raw = {};
       for (const k of Object.keys(probes)) {
@@ -1353,14 +1399,22 @@ try { null.x } catch (e) { e.message }
         out.append(wrap);
       });
 
+      const copyJson = async () => {
+        try { await navigator.clipboard.writeText(json); return true; }
+        catch (e) { return false; }
+      };
+
       document.getElementById("copy").addEventListener("click", async () => {
-        const status = document.getElementById("copy-status");
-        try {
-          await navigator.clipboard.writeText(json);
-          status.textContent = "copied";
-        } catch (e) {
-          status.textContent = "couldn't copy; open \"Show\" and select it instead";
-        }
+        document.getElementById("copy-status").textContent =
+          await copyJson() ? "copied" : "couldn't copy; open Raw data and select it instead";
+      });
+
+      const copyRaw = document.getElementById("copy-raw");
+      let copyReset;
+      copyRaw.addEventListener("click", async () => {
+        copyRaw.textContent = await copyJson() ? "Copied" : "Couldn't copy";
+        clearTimeout(copyReset);
+        copyReset = setTimeout(() => { copyRaw.textContent = "Copy"; }, 1500);
       });
     })();
   </script>
