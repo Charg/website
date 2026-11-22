@@ -138,10 +138,22 @@ a:visited { color: var(--visited); }
   97% { opacity: 0; }
 }
 
+.site .left,
 .site .right {
   display: flex;
   align-items: center;
   gap: 1.5rem;
+}
+
+/* GitHub and email icons beside the name, muted like the nav. */
+.site .left { gap: 1rem; }
+.site .social { display: flex; align-items: center; gap: 0.35rem; }
+.site .social a,
+.site .social a:visited { display: inline-flex; padding: 0.2rem; color: var(--muted); transition: color 0.2s; }
+.site .social svg { width: 1.1rem; height: 1.1rem; }
+
+@media (hover: hover) {
+  .site .social a:hover { color: var(--text); }
 }
 
 .site nav { display: flex; gap: 1.5rem; }
@@ -272,40 +284,65 @@ a:visited { color: var(--visited); }
   font-variant-numeric: tabular-nums;
 }
 
-/* ---- Site footer: twinkling stars, then links. ---- */
+/* ---- Site footer: an electric arc that crackles in now and then, then fades away. ---- */
 
 .site-footer {
   margin-top: clamp(4rem, 14vh, 7rem);
-  color: var(--muted);
-  text-align: center;
-  font-size: 0.9em;
+  display: flex;
+  justify-content: center;
 }
 
-.site-footer p { margin: 0.5em 0; }
-
-.site-footer a,
-.site-footer a:visited { color: var(--muted); text-decoration: none; }
-
-@media (hover: hover) {
-  .site-footer a:hover { color: var(--text); }
+/* Padding gives the double-click a target bigger than the arc. */
+.zap {
+  display: inline-flex;
+  padding: 0.75rem 1rem;
+  color: var(--text);
+  opacity: 0.2;
+  user-select: none;
+  animation: zap 9s steps(1, end) infinite;
 }
 
-.stars { font-size: 1em; letter-spacing: 0.4em; user-select: none; }
-
-/* Stars twinkle and bob in a gentle wave, one after another. */
-.stars .star {
-  display: inline-block;
-  animation: twinkle 3s ease-in-out infinite;
-}
-.stars .star:nth-child(2) { animation-delay: 0.4s; }
-.stars .star:nth-child(3) { animation-delay: 0.8s; }
-
-@keyframes twinkle {
-  0%, 60%, 100% { transform: translateY(0) scale(1); opacity: 0.5; }
-  30%           { transform: translateY(-0.3em) scale(1.3); opacity: 1; color: var(--text); }
+.zap svg {
+  width: 3rem;
+  height: 0.75rem;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-/* ---- ~*~ Easter egg: double-click the footer stars for a 2006 profile page ~*~ ---- */
+/* Two arc shapes swap back and forth while it flickers. */
+.zap .b { opacity: 0; animation: zap-swap 9s steps(1, end) infinite; }
+.zap .a { animation: zap-swap-a 9s steps(1, end) infinite; }
+
+/* Hidden, then a burst of jumpy, colour-split slices (like the name), then a glow that fades out. */
+@keyframes zap {
+  0%    { opacity: 0; translate: 0; clip-path: none; filter: none; }
+  78%   { opacity: 1; translate: -3px 0; clip-path: inset(0 0 55% 0); filter: drop-shadow(-2px 0 #ff2fd0) drop-shadow(2px 0 #00e5ff); }
+  79.5% { opacity: 1; translate: 2px 0; clip-path: inset(30% 0 10% 0); filter: drop-shadow(2px 0 #ff2fd0) drop-shadow(-2px 0 #00e5ff); }
+  80.5% { opacity: 0.2; translate: 0; clip-path: none; filter: none; }
+  81.5% { opacity: 1; translate: 1px -1px; clip-path: none; filter: drop-shadow(-3px 0 #ff2fd0) drop-shadow(3px 0 #00e5ff); }
+  83%   { opacity: 1; translate: -1px 0; clip-path: inset(50% 0 0 0); filter: drop-shadow(1px 0 #ff2fd0) drop-shadow(-1px 0 #00e5ff); }
+  84%   { opacity: 1; translate: 0; clip-path: none; filter: drop-shadow(0 0 3px currentColor); animation-timing-function: ease-out; }
+  100%  { opacity: 0; translate: 0; clip-path: none; filter: drop-shadow(0 0 0 transparent); }
+}
+
+@keyframes zap-swap {
+  0%, 81.5%, 84% { opacity: 0; }
+  79.5%, 83%     { opacity: 1; }
+}
+@keyframes zap-swap-a {
+  0%, 81.5%, 84% { opacity: 1; }
+  79.5%, 83%     { opacity: 0; }
+}
+
+/* In 2006 the spark stays lit, so there's a way back. */
+:root.myspace .zap { animation: none; opacity: 1; color: #ff3399; filter: drop-shadow(0 0 3px #ff3399); }
+:root.myspace .zap path { animation: none; }
+
+/* ---- ~*~ Easter egg: double-click the footer spark for a 2006 profile page ~*~ ---- */
 
 .ms { display: none; }
 :root.myspace .ms { display: block; }

@@ -1,8 +1,8 @@
-// Easter egg: double-click the footer stars to travel back to 2006.
+// Easter egg: double-click the footer spark to travel back to 2006.
 // Pages can listen for "myspace" on the document to add their own touches.
 (function () {
-  var stars = document.querySelector(".site-footer .stars");
-  if (!stars) return;
+  var spark = document.querySelector(".site-footer .zap");
+  if (!spark) return;
   var root = document.documentElement;
   var pageTitle = document.title;
   var twinkles;
@@ -29,7 +29,7 @@
     document.body.prepend(twinkles);
   }
 
-  stars.addEventListener("dblclick", function () {
+  spark.addEventListener("dblclick", function () {
     if (!twinkles) makeTwinkles();
     var on = root.classList.toggle("myspace");
     document.title = on ? "~*~ " + pageTitle + " ~*~" : pageTitle;
