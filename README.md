@@ -16,8 +16,12 @@ My personal site [syn.sh](https://syn.sh).
 - `server/`: the Go server. It embeds the built site, terminates TLS itself
   (behind a PROXY-protocol TCP passthrough), and serves `/api/connection`,
   which reports the client's TLS ClientHello (JA3, JA4) and opening HTTP/2
-  frames for the fingerprint tool. `server/cmd/build` is the site build; it
-  writes everything into `server/site/`, never back into the source files.
+  frames for the fingerprint tool. It also serves the client's IP at `/ip`
+  (`.txt`, `.json`, `.yaml`, `.toml`, `.xml`) and on its own host, `ip.syn.sh`,
+  which `-http-addr` also serves over plain HTTP behind a proxy that sets
+  `X-Real-Ip`. The page template is `templates/ip.html`. `server/cmd/build`
+  is the site build; it writes everything into `server/site/`, never back
+  into the source files.
 
 ## Develop
 

@@ -12,9 +12,12 @@ import (
 	"time"
 )
 
-// cspFile is written into the site directory by cmd/build. Dotfiles are never
-// served, so it stays private to the server.
-const cspFile = ".csp"
+// cspFile and ipPageFile are written into the site directory by cmd/build.
+// Dotfiles are never served, so they stay private to the server.
+const (
+	cspFile    = ".csp"
+	ipPageFile = "tools/.ip.html"
+)
 
 type file struct {
 	data []byte
@@ -26,6 +29,8 @@ type site struct {
 	files map[string]file
 	dirs  map[string]bool
 	csp   string
+	// ipTmpl is the IP page, with {{ip}} and {{version}} to fill in.
+	ipTmpl string
 }
 
 func loadSite(fsys fs.FS) (*site, error) {
@@ -40,6 +45,11 @@ func loadSite(fsys fs.FS) (*site, error) {
 		if name == cspFile {
 			b, err := fs.ReadFile(fsys, name)
 			s.csp = strings.TrimSpace(string(b))
+			return err
+		}
+		if name == ipPageFile {
+			b, err := fs.ReadFile(fsys, name)
+			s.ipTmpl = string(b)
 			return err
 		}
 		if hidden(name) {
@@ -66,6 +76,9 @@ func loadSite(fsys fs.FS) (*site, error) {
 	if s.csp == "" {
 		return nil, errors.New("site: missing " + cspFile + " (run go generate)")
 	}
+	if !strings.Contains(s.ipTmpl, "{{ip}}") {
+		return nil, errors.New("site: missing " + ipPageFile + " (run go generate)")
+	}
 	if _, ok := s.files["index.html"]; !ok {
 		return nil, errors.New("site: missing index.html (run go generate)")
 	}
@@ -83,9 +96,9 @@ func hidden(name string) bool {
 	return false
 }
 
-// routes is the full handler: security headers, GET/HEAD only, the
-// connection API and the static files.
-func routes(s *site) http.Handler {
+// routes is the full handler: security headers, GET/HEAD only, the IP host,
+// the connection and IP APIs, and the static files.
+func routes(s *site, ih ipHost) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("Strict-Transport-Security", "max-age=15552000")
@@ -100,8 +113,16 @@ func routes(s *site) http.Handler {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		if ih.name != "" && hostName(r) == ih.name {
+			ih.ServeHTTP(w, r)
+			return
+		}
 		if r.URL.Path == "/api/connection" {
 			serveConnection(w, r)
+			return
+		}
+		if format, ok := ipMainPath(r.URL.Path); ok {
+			serveIP(w, r, format, s.ipPage)
 			return
 		}
 		s.ServeHTTP(w, r)

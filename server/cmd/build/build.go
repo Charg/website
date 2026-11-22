@@ -65,6 +65,15 @@ func build(src fs.FS, out string, now time.Time) (result, error) {
 		return result{}, err
 	}
 
+	// The IP page is filled in per request. As a dotfile it is never served
+	// as-is; the server reads it at startup.
+	if pages["tools/.ip.html"], err = readString(src, "templates/ip.html"); err != nil {
+		return result{}, err
+	}
+	if !strings.Contains(pages["tools/.ip.html"], "{{ip}}") {
+		return result{}, fmt.Errorf("templates/ip.html: missing {{ip}}")
+	}
+
 	tools, err := fs.Glob(src, "tools/*.html")
 	if err != nil {
 		return result{}, err

@@ -29,6 +29,8 @@ var embedded embed.FS
 
 type config struct {
 	addr, healthAddr  string
+	httpAddr          string
+	ipHost, ipPage    string
 	certPath, keyPath string
 	devCert           bool
 	proxyProto        bool
@@ -41,6 +43,9 @@ func main() {
 	var c config
 	flag.StringVar(&c.addr, "addr", ":8443", "TLS listen address")
 	flag.StringVar(&c.healthAddr, "health-addr", ":8081", "plain HTTP address for /healthz")
+	flag.StringVar(&c.httpAddr, "http-addr", "", "plain HTTP address serving only the IP host, behind a proxy that sets X-Real-Ip (empty: off)")
+	flag.StringVar(&c.ipHost, "ip-host", "ip.syn.sh", "host name that answers only with the client's IP (empty: off)")
+	flag.StringVar(&c.ipPage, "ip-page", "https://syn.sh/ip", "where the IP host sends browsers")
 	flag.StringVar(&c.certPath, "cert", "/tls/tls.crt", "certificate file")
 	flag.StringVar(&c.keyPath, "key", "/tls/tls.key", "private key file")
 	flag.BoolVar(&c.devCert, "self-signed", false, "use a throwaway localhost certificate instead of -cert/-key")
@@ -101,7 +106,13 @@ func run(c config) error {
 		tlsConfig.GetCertificate = certs.get
 	}
 
-	srv, err := newServer(tlsConfig, logRequests(slog.Default(), routes(st)))
+	ih := ipHost{name: strings.ToLower(c.ipHost), pageURL: c.ipPage}
+	trusted, err := parsePrefixes(c.trustedProxies)
+	if err != nil {
+		return fmt.Errorf("-trusted-proxies: %w", err)
+	}
+
+	srv, err := newServer(tlsConfig, logRequests(slog.Default(), routes(st, ih)))
 	if err != nil {
 		return err
 	}
@@ -132,6 +143,17 @@ func run(c config) error {
 		}
 	}()
 
+	var plain *http.Server
+	if c.httpAddr != "" {
+		plain = newPlainServer(c.httpAddr, realIP(trusted, logRequests(slog.Default(), plainRoutes(ih))))
+		go func() {
+			if err := plain.ListenAndServe(); err != http.ErrServerClosed {
+				slog.Error("plain HTTP server", "err", err)
+				stop()
+			}
+		}()
+	}
+
 	slog.Info("listening", "addr", ln.Addr().String(), "proxy_protocol", c.proxyProto, "files", len(st.files))
 	go srv.serve(ln)
 
@@ -141,6 +163,9 @@ func run(c config) error {
 	sctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	health.Shutdown(sctx)
+	if plain != nil {
+		plain.Shutdown(sctx)
+	}
 	return srv.shutdown(sctx)
 }
 

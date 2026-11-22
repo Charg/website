@@ -27,6 +27,7 @@ func testSrc() fstest.MapFS {
 		"templates/blog.html":      f(page("<ul>\n{{posts}}\n</ul>")),
 		"templates/header.html":    f(`<nav data-style="x"><a href="/blog/"{{current:blog}}>blog</a><a href="/"{{current:home}}>home</a></nav><style media="print">nav{}</style>`),
 		"templates/footer.html":    f("<footer>footer</footer>"),
+		"templates/ip.html":        f(page("<style>.ip{}</style><p>{{ip}} v{{version}}</p>")),
 		"tools/index.html":         f(page("tools")),
 		"tools/x.html":             f(page(`<script src="/assets/x.js"></script><script>alert(1)</script><script>el.style = "a"; s = '<b style="x">'</script><p>style="not an attribute"</p>`)),
 		"assets/site.css":          f("body{}"),
@@ -51,7 +52,7 @@ func TestBuild(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res != (result{posts: 2, scripts: 2, styles: 4}) {
+	if res != (result{posts: 2, scripts: 2, styles: 5}) {
 		t.Errorf("result = %+v", res)
 	}
 
@@ -94,6 +95,7 @@ func TestBuild(t *testing.T) {
 	contains("blog/old/shot.png", "png")
 	contains("tools/x.html", `<a href="/blog/">blog`, `<a href="/">home`)
 	contains("tools/index.html", "tools")
+	contains("tools/.ip.html", "<p>{{ip}} v{{version}}</p>", `<a href="/blog/">blog`, "<footer>footer</footer>")
 	contains("assets/site.css", "body{}")
 	contains(".well-known/security.txt", "Contact")
 	contains("humans.txt", "Last update: 2026/11/19")
@@ -109,7 +111,7 @@ func TestBuild(t *testing.T) {
 	}
 	// Every inline style in every built page is allowed, hashed over the bytes as served.
 	styleBlock := regexp.MustCompile(`(?s)<style[^>]*>(.*?)</style>`)
-	for _, name := range []string{"index.html", "blog/index.html", "blog/new.html", "blog/old.html", "tools/index.html", "tools/x.html"} {
+	for _, name := range []string{"index.html", "blog/index.html", "blog/new.html", "blog/old.html", "tools/index.html", "tools/x.html", "tools/.ip.html"} {
 		blocks := styleBlock.FindAllStringSubmatch(read(name), -1)
 		if len(blocks) == 0 {
 			t.Errorf("%s: no inline styles", name)
@@ -162,6 +164,8 @@ func TestBuildErrors(t *testing.T) {
 		"index slug":          {"posts/index.md", "---\ntitle: A\ndate: 2026-01-01\n---\nx", "posts/index.md: clashes"},
 		"no header":           {"tools/y.html", "<p>" + footerMarker, "tools/y.html: missing " + headerMarker},
 		"no posts slot":       {"index.html", page(""), "index.html: missing {{posts}}"},
+		"no ip slot":          {"templates/ip.html", page(""), "templates/ip.html: missing {{ip}}"},
+		"no ip header":        {"templates/ip.html", "{{ip}}", "tools/.ip.html: missing " + headerMarker},
 		"style attr":          {"tools/y.html", page(`<p class="a" STYLE = "color: red">`), `tools/y.html: style attribute is blocked by the CSP: <p class="a" STYLE = "color: red">`},
 		"style attr post":     {"posts/a.md", "---\ntitle: A\ndate: 2026-01-01\n---\n<span style=\"x\">hi</span>", "blog/a.html: style attribute"},
 		"style attr tmpl":     {"templates/footer.html", `<footer style="x">`, "index.html: style attribute"},

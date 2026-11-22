@@ -16,6 +16,7 @@ func testSite(t *testing.T) *site {
 		".well-known/security.txt": {Data: []byte("Contact: x")},
 		".well-known/.hidden":      {Data: []byte("no")},
 		"index.html":               {Data: []byte("<!doctype html>home")},
+		ipPageFile:                 {Data: []byte("<p>{{ip}} v{{version}}</p>")},
 		"llms.txt":                 {Data: []byte("hello")},
 		"tools/fingerprint.html":   {Data: []byte("<!doctype html>fp")},
 		"blog/index.html":          {Data: []byte("<!doctype html>blog")},
@@ -66,7 +67,7 @@ func TestSiteRoutes(t *testing.T) {
 				req.URL.Path = tt.path
 			}
 			rec := httptest.NewRecorder()
-			routes(s).ServeHTTP(rec, req)
+			routes(s, testIPHost).ServeHTTP(rec, req)
 			if rec.Code != tt.status {
 				t.Fatalf("status = %d, want %d", rec.Code, tt.status)
 			}
@@ -97,7 +98,7 @@ func TestSiteHeaders(t *testing.T) {
 	for _, p := range []string{"/", "/nope", "/blog", "/.git/config"} {
 		for _, m := range []string{"GET", "POST"} {
 			rec := httptest.NewRecorder()
-			routes(s).ServeHTTP(rec, httptest.NewRequest(m, p, nil))
+			routes(s, testIPHost).ServeHTTP(rec, httptest.NewRequest(m, p, nil))
 			for k, v := range want {
 				if got := rec.Header().Get(k); got != v {
 					t.Errorf("%s %s: %s = %q, want %q", m, p, k, got, v)
@@ -113,7 +114,7 @@ func TestSiteHeaders(t *testing.T) {
 func TestSiteContentTypeAndETag(t *testing.T) {
 	s := testSite(t)
 	rec := httptest.NewRecorder()
-	routes(s).ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
+	routes(s, testIPHost).ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
 	if ct := rec.Header().Get("Content-Type"); ct != "text/html; charset=utf-8" {
 		t.Errorf("Content-Type = %q", ct)
 	}
@@ -125,20 +126,20 @@ func TestSiteContentTypeAndETag(t *testing.T) {
 	req := httptest.NewRequest("GET", "/", nil)
 	req.Header.Set("If-None-Match", etag)
 	rec = httptest.NewRecorder()
-	routes(s).ServeHTTP(rec, req)
+	routes(s, testIPHost).ServeHTTP(rec, req)
 	if rec.Code != http.StatusNotModified {
 		t.Errorf("conditional GET = %d, want 304", rec.Code)
 	}
 
 	rec = httptest.NewRecorder()
-	routes(s).ServeHTTP(rec, httptest.NewRequest("GET", "/llms.txt", nil))
+	routes(s, testIPHost).ServeHTTP(rec, httptest.NewRequest("GET", "/llms.txt", nil))
 	if ct := rec.Header().Get("Content-Type"); ct != "text/plain; charset=utf-8" {
 		t.Errorf("llms.txt Content-Type = %q", ct)
 	}
 }
 
 func TestLoadSiteRequiresCSP(t *testing.T) {
-	_, err := loadSite(fstest.MapFS{"index.html": {Data: []byte("x")}})
+	_, err := loadSite(fstest.MapFS{"index.html": {Data: []byte("x")}, ipPageFile: {Data: []byte("{{ip}}")}})
 	if err == nil {
 		t.Fatal("expected an error without .csp")
 	}

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your IP · Chris Argeros</title>
+  <meta name="description" content="Your public IP address, as text, JSON, YAML, TOML or XML.">
+  <link rel="author" href="/humans.txt">
+  <link rel="stylesheet" href="/assets/site.css">
+  <script src="/assets/theme.js"></script>
+  <script src="/assets/generative.js"></script>
+  <script src="/assets/myspace.js" defer></script>
+  <style>
+    :root { --code-bg: #ecebe5; }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) { --code-bg: #1a1a1a; }
+    }
+    :root[data-theme="dark"] { --code-bg: #1a1a1a; }
+
+    .ip {
+      margin: 0 0 0.3em;
+      font-size: clamp(1.6rem, 7vw, 2.6rem);
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+    .ip-version { color: var(--muted); margin: 0 0 2.5em; }
+    h2 { margin: 2.25em 0 0.6em; font-size: 1.2em; font-weight: 700; }
+    code { background: var(--code-bg); padding: 0.1em 0.3em; }
+    pre { background: var(--code-bg); padding: 1rem 1.25rem; overflow-x: auto; font-size: 0.9em; line-height: 1.6; }
+    pre code { padding: 0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- include:header -->
+    <main>
+      <header class="page-head">
+        <h1>Your IP</h1>
+      </header>
+      <p class="ip">{{ip}}</p>
+      <p class="ip-version">IPv{{version}}</p>
+
+      <h2>Formats</h2>
+      <ul class="list">
+        <li><a href="/ip.txt">/ip.txt</a> <span class="note">just the address</span></li>
+        <li><a href="/ip.json">/ip.json</a></li>
+        <li><a href="/ip.yaml">/ip.yaml</a></li>
+        <li><a href="/ip.toml">/ip.toml</a></li>
+        <li><a href="/ip.xml">/ip.xml</a></li>
+      </ul>
+
+      <h2>From a terminal</h2>
+<pre><code>curl ip.syn.sh
+curl ip.syn.sh/json
+curl https://syn.sh/ip.yaml</code></pre>
+      <p>Only IPv4 for now. Nothing is logged beyond the usual request log.</p>
+    </main>
+
+    <!-- include:footer -->
+  </div>
+</body>
+</html>

@@ -10,6 +10,7 @@ Hello, language model. This site is a few HTML pages, served by a small Go serve
 - [Blog](/blog/): All blog posts, newest first
 - [Tools](/tools/): Small tools hosted on this site
 - [Browser fingerprint](/tools/fingerprint.html): An educational tool that runs common browser-fingerprinting techniques, shows what your TLS and HTTP/2 connection reveals, and explains each one
+- [Your IP](/ip): Your public IP address
 - [humans.txt](/humans.txt): Who made this site
 
 ## Posts
@@ -19,6 +20,7 @@ Hello, language model. This site is a few HTML pages, served by a small Go serve
 ## API
 
 - [/api/connection](/api/connection): JSON describing how your client connected: TLS ClientHello (JA3, JA4) and opening HTTP/2 frames. Nothing is stored.
+- [/ip](/ip): Your IP address as plain text (an HTML page for browsers). Also `/ip.txt`, `/ip.json`, `/ip.yaml`, `/ip.toml` and `/ip.xml`. The same is served at `ip.syn.sh` (`/`, `/json`, `/yaml`, ...), over HTTP and HTTPS. IPv4 only for now.
 
 ## Contact
 

@@ -172,7 +172,7 @@ func TestConnectionAPI(t *testing.T) {
 	leaf, _ := x509.ParseCertificate(cert.Certificate[0])
 	roots := x509.NewCertPool()
 	roots.AddCert(leaf)
-	st, err := loadSite(fstest.MapFS{".csp": {Data: []byte("default-src 'self'")}, "index.html": {Data: []byte("hi")}})
+	st, err := loadSite(fstest.MapFS{".csp": {Data: []byte("default-src 'self'")}, ipPageFile: {Data: []byte("{{ip}}")}, "index.html": {Data: []byte("hi")}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +180,7 @@ func TestConnectionAPI(t *testing.T) {
 		MinVersion:   tls.VersionTLS12,
 		NextProtos:   []string{"h2", "http/1.1"},
 		Certificates: []tls.Certificate{*cert},
-	}, routes(st))
+	}, routes(st, testIPHost))
 	if err != nil {
 		t.Fatal(err)
 	}
