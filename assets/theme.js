@@ -3,28 +3,15 @@
 (function () {
   var root = document.documentElement;
   // Keep in step with the radios in templates/header.html and the rules in site.css.
-  var themes = ["light", "dark", "trippy"];
+  // generative.js runs right after this and builds the generative theme.
+  var themes = ["light", "dark", "generative"];
 
   try {
     var saved = localStorage.getItem("theme");
+    // The generative theme replaced the old trippy theme.
+    if (saved === "trippy") saved = "generative";
     if (themes.indexOf(saved) !== -1) root.dataset.theme = saved;
   } catch (e) {}
-
-  // The trippy theme's fractal and tunnel are heavy, so they load only when picked.
-  var trippyLoaded = false;
-  function loadTrippy() {
-    if (trippyLoaded) return;
-    trippyLoaded = true;
-    var script = document.createElement("script");
-    script.src = "/assets/trippy.js";
-    // Let the next pick try again if this one never arrives.
-    script.onerror = function () {
-      script.remove();
-      trippyLoaded = false;
-    };
-    document.head.appendChild(script);
-  }
-  if (root.dataset.theme === "trippy") loadTrippy();
 
   document.addEventListener("DOMContentLoaded", function () {
     var themeSwitch = document.querySelector(".switch");
@@ -39,7 +26,6 @@
 
     themeSwitch.addEventListener("change", function (e) {
       root.dataset.theme = e.target.value;
-      if (e.target.value === "trippy") loadTrippy();
       try { localStorage.setItem("theme", e.target.value); } catch (err) {}
     });
 

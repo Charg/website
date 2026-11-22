@@ -8,6 +8,7 @@
   <link rel="author" href="/humans.txt">
   <link rel="stylesheet" href="/assets/site.css">
   <script src="/assets/theme.js"></script>
+  <script src="/assets/generative.js"></script>
   <script src="/assets/myspace.js" defer></script>
   <style>
     :root {
@@ -215,13 +216,13 @@
       }
       .toc summary::-webkit-details-marker { display: none; }
 
-      /* Trippy: the side columns float over the tunnel, so they're .glass like the reading column. */
-      :root[data-theme="trippy"]:not(.myspace) :is(.toc, .panel) {
+      /* Generative: the side columns float over the background, so they're .glass like the reading column. */
+      :root[data-theme="generative"]:not(.myspace) :is(.toc, .panel) {
         top: 1rem;
         max-height: calc(100vh - 2rem);
         padding: 1.25rem;
         border-radius: 1rem;
-        box-shadow: 0 0 0 2px var(--trippy-pink);
+        box-shadow: 0 0 0 2px var(--link);
       }
     }
 
@@ -1182,7 +1183,7 @@ try { null.x } catch (e) { e.message }
         byId("slot-summary").append(byId("summary"));
         byId("slot-tools").append(byId("raw"), byId("compare"));
       }
-      // Frosted only in the side column, where it floats over the trippy tunnel.
+      // Frosted only in the side column, where it floats over the generative background.
       toc.classList.toggle("glass", MID.matches);
       if (MID.matches) {
         byId("toc-col").append(toc);
