@@ -270,6 +270,7 @@
       <p class="hero-label">Your fingerprint</p>
       <p class="id" id="fp-core">computing…</p>
       <p class="muted hero-meta" id="fp-core-meta">&nbsp;</p>
+      <p class="hero-meta" id="fp-device">&nbsp;</p>
     </div>
 
     <details class="breakdown" id="breakdown">
@@ -321,6 +322,22 @@
     <p class="muted small">Each one is tagged with how identifying it tends to be. In the results, values marked <b>~</b> change often (window size, battery level), so they're left out of both IDs. Values marked <b class="core-dot">●</b> are part of your fingerprint.</p>
 
     <div class="rows">
+    <details class="row technique" id="device">
+      <summary><span class="row-name">Device and operating system</span><span class="lvl medium">medium</span></summary>
+      <div class="row-body">
+      <p class="tag">putting the clues together</p>
+      <p>No single value says "this is an iPhone 15 running iOS 18". A site works it out by combining the clues on this page, and checking them against each other:</p>
+      <ul>
+        <li><strong>Phone, tablet or computer.</strong> Chromium browsers say so outright (<code>navigator.userAgentData.mobile</code>, and the <code>Sec-CH-UA-Mobile</code> header on every request). Otherwise: a touch screen, a finger as the main pointer, nothing that can hover, and a small screen.</li>
+        <li><strong>iPhone or Android.</strong> The user agent usually says. Only Safari's engine (WebKit on iOS and iPadOS) supports the CSS property <code>-webkit-touch-callout</code>, so it's a reliable check. An iPad asks for desktop sites and claims to be a Mac, but Macs have no touch screen, so a "Mac" with touch points is an iPad. Android graphics chips (Adreno, Mali, Xclipse, PowerVR) give it away too.</li>
+        <li><strong>Operating system and version.</strong> The user agent names the OS, but browsers now freeze the version: every Mac claims macOS 10.15.7, and Chrome on Android claims Android 10. Chromium will give the real version through client hints if asked. Windows 11 even <em>looks</em> like Windows 10 in the user agent, and only client hints tell them apart.</li>
+        <li><strong>The exact model.</strong> Chrome on Android will report it through client hints (for example <code>Pixel 8</code>). Apple's browsers never do, but the screen size and pixel density narrow it to a handful of models.</li>
+      </ul>
+      <p>None of this is part of your fingerprint IDs, because it's worked out from signals that already are. But the cross-checks matter: when the clues disagree, the user agent is usually lying. That's what developer tools' device emulation, user-agent switcher extensions and many bots look like.</p>
+      <dl class="out"><dt>…</dt><dd>running</dd></dl>
+      </div>
+    </details>
+
     <details class="row technique" id="connection">
       <summary><span class="row-name">Your connection</span><span class="lvl high">high</span></summary>
       <div class="row-body">
@@ -1160,6 +1177,165 @@ try { null.x } catch (e) { e.message }
       return rows;
     };
 
+    // ---- device and OS -------------------------------------------------------
+
+    // Works out the device, OS and browser from the probes' results and checks
+    // the clues against each other. It's derived from signals already hashed,
+    // so it isn't a probe and stays out of both IDs.
+    async function inferDevice() {
+      const val = (probe, label) => {
+        const row = (results[probe] || []).find(([l]) => l === label);
+        return row ? row[1] : undefined;
+      };
+      const ua = navigator.userAgent;
+      const uad = navigator.userAgentData;
+      let hi = {};
+      if (uad) {
+        try { hi = await uad.getHighEntropyValues(["platformVersion", "model", "formFactors"]); } catch (e) {}
+      }
+      const touch = navigator.maxTouchPoints || 0;
+      const pointer = val("media-queries", "Pointer");
+      const hover = val("media-queries", "Hover");
+      const gpu = String(val("webgl", "GPU renderer") || "");
+      const err = String(val("engine", "Error message") || "");
+      const supports = (p, v) => { try { return CSS.supports(p, v); } catch (e) { return false; } };
+      const iosWebKit = supports("-webkit-touch-callout", "none");
+      const shortSide = Math.min(screen.width, screen.height);
+      const clues = [];
+      const conflicts = [];
+
+      // What the user agent claims.
+      let claimed = "unknown";
+      if (/iPhone|iPod/.test(ua)) claimed = "iOS";
+      else if (/iPad/.test(ua)) claimed = "iPadOS";
+      else if (/Android/.test(ua)) claimed = "Android";
+      else if (/CrOS/.test(ua)) claimed = "ChromeOS";
+      else if (/Windows/.test(ua)) claimed = "Windows";
+      else if (/Macintosh|Mac OS X/.test(ua)) claimed = "macOS";
+      else if (/Linux|X11/.test(ua)) claimed = "Linux";
+
+      let os = claimed;
+      if (claimed === "macOS" && (touch > 1 || iosWebKit)) {
+        os = "iPadOS";
+        clues.push(`claims to be a Mac but has ${touch} touch points, so it's an iPad asking for desktop sites`);
+      }
+
+      // Client hints count only when they describe the same OS as the user
+      // agent. Device emulation and UA switchers change one but not the other.
+      const hintsOS = uad && uad.platform ? uad.platform.replace(/\s/g, "").toLowerCase() : "";
+      // Every iOS browser is WebKit, which has no client hints, and an Android
+      // phone doesn't report a desktop form factor. Chrome's device emulation
+      // gets both wrong.
+      const mobileOS = os === "iOS" || os === "iPadOS" || os === "Android";
+      const hintsDesktop = (hi.formFactors || []).includes("Desktop");
+      const samePlatform = hintsOS === os.toLowerCase() || (hintsOS === "macos" && os === "iPadOS");
+      const hintsAgree = samePlatform &&
+        !(uad && (os === "iOS" || os === "iPadOS")) && !(mobileOS && hintsDesktop);
+
+      // OS version: client hints are the real one; the user agent's is often frozen.
+      let version, exact = false;
+      const pv = hintsAgree && hi.platformVersion;
+      if (pv) {
+        const major = parseInt(pv, 10);
+        if (os === "Windows") version = major >= 13 ? "11" : major > 0 ? "10" : "7, 8 or 8.1";
+        else if (os !== "Linux") version = pv.replace(/(\.0)+$/, "");
+        if (version) { exact = !/ or /.test(version); clues.push(`client hints give the real ${os} version`); }
+      }
+      if (!version) {
+        let m;
+        const safari = /Version\/(\d+(?:\.\d+)?)/.exec(ua);
+        if ((os === "iOS" || os === "iPadOS") && safari && parseInt(safari[1], 10) >= 26) {
+          version = `${safari[1]} (from Safari's version; the OS version in the user agent is frozen)`;
+        } else if ((m = /OS (\d+[_\d]*) like Mac OS X/.exec(ua))) {
+          version = m[1].replace(/_/g, ".");
+          exact = true;
+        } else if ((m = /Android (\d+(?:\.\d+)*)/.exec(ua))) {
+          exact = !(m[1] === "10" && /Chrome\//.test(ua));
+          version = exact ? m[1] : "10 or later (Chrome freezes this at 10)";
+        } else if (os === "macOS") {
+          version = "unknown (every browser claims 10.15.7)";
+        } else if (os === "Windows" && /Windows NT 10/.test(ua)) {
+          version = "10 or 11 (the user agent can't tell them apart)";
+        }
+      }
+
+      // Phone, tablet or computer.
+      const forms = (hintsAgree && hi.formFactors) || [];
+      let device;
+      if (forms.length) {
+        device = forms.join(", ").toLowerCase();
+        clues.push(`client hints say ${device}`);
+      } else if (os === "iOS") device = "phone";
+      else if (os === "iPadOS") device = "tablet";
+      else if (os === "Android") {
+        const mobile = uad ? uad.mobile : /Mobile/.test(ua);
+        device = mobile ? "phone" : "tablet";
+        clues.push(mobile ? "Android says mobile" : "Android without the mobile flag usually means a tablet");
+      } else if (touch > 0 && pointer === "coarse") device = shortSide < 600 ? "phone" : "tablet or touch-screen computer";
+      else device = touch > 0 ? "computer with a touch screen" : "computer";
+      if (pointer === "coarse" && hover === "none") clues.push("main pointer is a finger and nothing can hover");
+      else if (pointer === "fine") clues.push("main pointer is a mouse or trackpad");
+
+      // Exact model, where the platform gives it away.
+      let model = (hintsAgree && hi.model) || undefined;
+      if (!model && (os === "iOS" || os === "iPadOS")) {
+        model = `${os === "iOS" ? "an iPhone" : "an iPad"} with a ${screen.width} × ${screen.height} screen at ${devicePixelRatio}×; that size narrows it to a few models`;
+      }
+
+      // Browser and engine.
+      let browser = "unknown";
+      const m = (re) => { const r = re.exec(ua); return r ? r[1] : ""; };
+      if (/EdgiOS|EdgA|Edg\//.test(ua)) browser = `Edge ${m(/Edg(?:iOS|A)?\/(\d+)/)}`;
+      else if (/OPR\/|OPiOS/.test(ua)) browser = `Opera ${m(/(?:OPR|OPiOS)\/(\d+)/)}`;
+      else if (/SamsungBrowser/.test(ua)) browser = `Samsung Internet ${m(/SamsungBrowser\/(\d+)/)}`;
+      else if (/FxiOS|Firefox\//.test(ua)) browser = `Firefox ${m(/(?:FxiOS|Firefox)\/(\d+)/)}`;
+      else if (/CriOS|Chrome\//.test(ua)) browser = `${navigator.brave ? "Brave" : "Chrome"} ${m(/(?:CriOS|Chrome)\/(\d+)/)}`;
+      else if (/Safari\//.test(ua)) browser = `Safari ${m(/Version\/(\d+(?:\.\d+)?)/)}`;
+      browser = browser.trim();
+
+      let engine = "unknown";
+      if (err.startsWith("Cannot read properties")) engine = "Blink (V8)";
+      else if (err.includes("has no properties")) engine = "Gecko (SpiderMonkey)";
+      else if (err.includes("is not an object")) engine = "WebKit (JavaScriptCore)";
+
+      // Cross-checks: each one is a way the user agent can be caught lying.
+      if (uad && (os === "iOS" || os === "iPadOS")) conflicts.push(`claims ${os}, but has client hints, which no iOS browser supports`);
+      if (mobileOS && hintsDesktop) conflicts.push(`claims ${os}, but client hints say this is a desktop`);
+      if ((claimed === "iOS" || claimed === "iPadOS") && !iosWebKit) conflicts.push(`claims ${claimed}, but this isn't iOS's WebKit (no -webkit-touch-callout)`);
+      if ((os === "iOS" || os === "iPadOS") && engine !== "unknown" && !engine.startsWith("WebKit")) conflicts.push(`claims ${os}, but the JavaScript engine is ${engine}; iOS browsers outside the EU must use WebKit`);
+      if (!mobileOS && iosWebKit) conflicts.push(`claims ${os}, but supports -webkit-touch-callout, which only iOS and iPadOS do`);
+      if (mobileOS && touch === 0) conflicts.push(`claims ${os}, but there's no touch screen`);
+      if (/Firefox\//.test(ua) && !/FxiOS/.test(ua) && engine !== "unknown" && !engine.startsWith("Gecko")) conflicts.push(`claims Firefox, but the engine is ${engine}`);
+      if (/Chrome\//.test(ua) && !/Edg|OPR/.test(ua) && engine !== "unknown" && !engine.startsWith("Blink")) conflicts.push(`claims Chrome, but the engine is ${engine}`);
+      if (hintsOS && os !== "unknown" && !samePlatform) conflicts.push(`the user agent says ${os}, client hints say ${uad.platform}`);
+      if (/Adreno|Mali|Xclipse|PowerVR|Immortalis/i.test(gpu)) {
+        clues.push(`graphics chip (${gpu.match(/Adreno|Mali|Xclipse|PowerVR|Immortalis/i)[0]}) is a phone or tablet chip`);
+        if (!mobileOS && os !== "ChromeOS" && os !== "Linux") conflicts.push(`claims ${os}, but the graphics chip is a phone chip`);
+      }
+      if (/Apple (M\d|GPU)/.test(gpu)) {
+        clues.push("the graphics chip is Apple's");
+        if (!/macOS|iOS|iPadOS/.test(os)) conflicts.push(`claims ${os}, but the graphics chip is Apple's`);
+      }
+      if (/NVIDIA|Radeon|GeForce|Intel\(R\)|Intel Iris|Intel UHD/i.test(gpu) && mobileOS) conflicts.push(`claims ${os}, but the graphics chip is a desktop one`);
+      const plat = navigator.platform || "";
+      if (/Win/.test(plat) && claimed !== "Windows" && claimed !== "unknown") conflicts.push(`navigator.platform says ${plat}, the user agent says ${claimed}`);
+      if (/Mac/.test(plat) && !/macOS|iOS|iPadOS/.test(claimed)) conflicts.push(`navigator.platform says ${plat}, the user agent says ${claimed}`);
+
+      return {
+        summary: { device, os, version, exact, browser, engine, model },
+        rows: [
+          ["Device", device],
+          ["Operating system", os],
+          ["OS version", version],
+          ["Model", model],
+          ["Browser", browser],
+          ["Engine", engine],
+          ["Clues", clues.length ? clues.join("; ") : NA],
+          ["Mismatches", conflicts.length ? conflicts.join("; ") : "none: the clues agree", conflicts.length ? "w" : ""],
+        ],
+      };
+    }
+
     // ---- the breakdown -------------------------------------------------------
 
     // The core signals, grouped and explained for the breakdown under the ID.
@@ -1289,6 +1465,20 @@ try { null.x } catch (e) { e.message }
     (async () => {
       await Promise.all(Object.keys(probes).map(run));
 
+      let device = {};
+      try {
+        device = await withTimeout(inferDevice(), 5000);
+        render("device", device.rows);
+        const s = device.summary;
+        const article = /^[aeiou]/i.test(s.device) ? "an" : "a";
+        const line = document.getElementById("fp-device");
+        const a = el("a", "", "Why?");
+        a.href = "#device";
+        line.replaceChildren(`Looks like ${s.browser} on ${article} ${s.device} running ${s.os}${s.exact ? ` ${s.version}` : ""}. `, a);
+      } catch (e) {
+        render("device", [["Blocked or failed", String(e && e.message || e), "w"]]);
+      }
+
       // The exact ID hashes every stable value; the core ID (shown as "your
       // fingerprint") hashes only the core ones. Both walk the probes in a
       // fixed order, so changing labels or flags changes everyone's IDs.
@@ -1320,7 +1510,7 @@ try { null.x } catch (e) { e.message }
         const rows = results[k];
         raw[k] = Object.fromEntries(rows.map(([label, value]) => [label, value === undefined ? null : value]));
       }
-      const json = JSON.stringify({ id, coreId, ...raw }, null, 2);
+      const json = JSON.stringify({ id, coreId, device: device.summary || null, ...raw }, null, 2);
       document.getElementById("raw-json").textContent = json;
 
       // Compare this visit with JSON pasted from another window. Only stable
